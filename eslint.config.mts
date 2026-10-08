@@ -8,6 +8,7 @@ export default defineConfig(
 		'dist',
 		'esbuild.config.mjs',
 		'version-bump.mjs',
+		'jest.config.cjs',
 		'versions.json',
 		'main.js',
 		'package.json',
@@ -18,6 +19,7 @@ export default defineConfig(
 		languageOptions: {
 			globals: {
 				...globals.browser,
+				...globals.jest,
 			},
 			parserOptions: {
 				projectService: {

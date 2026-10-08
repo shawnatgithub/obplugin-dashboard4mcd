@@ -11,9 +11,10 @@
 		"moduleResolution": "node",
 		"isolatedModules": true,
 		"skipLibCheck": true,
+		"esModuleInterop": true,
 		"forceConsistentCasingInFileNames": true,
 		"allowSyntheticDefaultImports": true,
 		"lib": ["ES2021", "DOM"]
 	},
-	"include": ["src/**/*.ts"]
+	"include": ["src/**/*.ts", "tests/**/*.ts", "__mocks__/**/*.ts"]
 }

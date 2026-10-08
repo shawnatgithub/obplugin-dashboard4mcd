@@ -1,11 +1,11 @@
 {
-	"id": "sample-plugin",
-	"name": "Sample Plugin",
-	"version": "1.0.0",
+	"id": "mcd",
+	"name": "Dashboard for Macro Commerial Data",
+	"version": "0.0.1",
 	"minAppVersion": "1.0.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
+	"description": "An Obsidian plugin designed to display macro-level business data, particularly data related to retail commercial real estate.",
+	"author": "SeanClickin",
+	"authorUrl": "https://github.com/shawnatgithub",
+	"fundingUrl": "https://github.com/shawnatgithub",
 	"isDesktopOnly": false
 }
