@@ -32,6 +32,7 @@ export class Plugin {
 		return { setText: () => {}, addClass: () => {} };
 	}
 	addSettingTab(): void {}
+	registerView(): void {}
 	registerDomEvent(): void {}
 	registerEvent(): void {}
 	registerInterval(): void {}
@@ -48,6 +49,9 @@ export class Notice {
 export class Setting {
 	constructor(_containerEl?: unknown) {}
 	setName(_name: string): this {
+		return this;
+	}
+	setHeading(): this {
 		return this;
 	}
 	setDesc(_desc: string): this {
@@ -87,3 +91,33 @@ export class PluginSettingTab {
 }
 
 export class MarkdownView {}
+
+export class WorkspaceLeaf {}
+
+/** Minimal ItemView stub: a container with a header (0) and content (1). */
+export class ItemView {
+	app: unknown;
+	leaf: unknown;
+	containerEl: HTMLElement;
+	contentEl: HTMLElement;
+
+	constructor(leaf?: unknown) {
+		this.leaf = leaf;
+		this.containerEl = document.createElement('div');
+		this.contentEl = document.createElement('div');
+		this.containerEl.appendChild(document.createElement('div'));
+		this.containerEl.appendChild(this.contentEl);
+	}
+
+	getViewType(): string {
+		return '';
+	}
+	getDisplayText(): string {
+		return '';
+	}
+	getIcon(): string {
+		return '';
+	}
+	async onOpen(): Promise<void> {}
+	async onClose(): Promise<void> {}
+}

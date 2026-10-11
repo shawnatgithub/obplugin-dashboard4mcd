@@ -2,7 +2,7 @@
 	"id": "mcd",
 	"name": "Dashboard for Macro Commerial Data",
 	"version": "0.0.1",
-	"minAppVersion": "1.0.0",
+	"minAppVersion": "1.7.2",
 	"description": "An Obsidian plugin designed to display macro-level business data, particularly data related to retail commercial real estate.",
 	"author": "SeanClickin",
 	"authorUrl": "https://github.com/shawnatgithub",

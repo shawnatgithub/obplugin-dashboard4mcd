@@ -202,6 +202,11 @@
 .mcd-card {
 	display: flex;
 	flex-direction: column;
+	/* Obsidian 基础 button 规则带 height: var(--input-height)，必须覆盖，
+	   否则卡片高度塌陷、内容溢出。 */
+	height: auto;
+	align-items: stretch;
+	justify-content: flex-start;
 	gap: var(--mcd-sp-3);
 	padding: var(--mcd-sp-4);
 	border: 1px solid var(--mcd-stroke);
@@ -279,10 +284,11 @@
 	color: var(--mcd-muted);
 }
 
-/* 迷你折线区（实现时由 ECharts sparkline 填充，高度基准 40px） */
+/* 迷你折线区（Overview 用原生 SVG 绘制，高度基准 40px） */
 .mcd-spark {
 	width: 100%;
 	height: 40px;
+	overflow: visible;
 }
 
 .mcd-card__foot {
@@ -292,6 +298,32 @@
 	gap: var(--mcd-sp-2);
 	padding-top: var(--mcd-sp-2);
 	border-top: 1px solid var(--mcd-stroke);
+	font-size: var(--mcd-fs-small);
+	color: var(--mcd-muted);
+}
+
+/* foot 左侧信息组（期 + 圆点 + 文案），右侧留给 NEW/缺失 */
+.mcd-card__foot-left {
+	display: inline-flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: var(--mcd-sp-2);
+	min-width: 0;
+}
+
+/* 过期提示文案需比 muted 更醒目（数据诚实性） */
+.mcd-card__foot-expired {
+	color: var(--mcd-text);
+}
+
+/* 过期卡片：以占位框替代 sparkline */
+.mcd-card__expired {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 40px;
+	border: 1px dashed var(--mcd-stroke);
+	border-radius: var(--mcd-radius-chip);
 	font-size: var(--mcd-fs-small);
 	color: var(--mcd-muted);
 }
@@ -317,6 +349,10 @@
 
 .mcd-dot.is-stale {
 	background: var(--mcd-stale);
+}
+
+.mcd-dot.is-red {
+	background: var(--mcd-red);
 }
 
 .mcd-badge {
@@ -355,6 +391,11 @@
 .mcd-delta {
 	font-variant-numeric: tabular-nums;
 	font-size: var(--mcd-fs-label);
+}
+
+/* 数值行内 Delta 右对齐 */
+.mcd-card__value .mcd-delta {
+	margin-left: auto;
 }
 
 /* ---------- 7. 控件：分段器 / 下拉 / 按钮 ---------- */

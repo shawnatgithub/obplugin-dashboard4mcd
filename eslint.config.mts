@@ -35,6 +35,20 @@ export default defineConfig(
 	},
 	...obsidianmd.configs.recommended,
 	{
+		// 本插件 UI 文案为中文，英文 sentence-case 规则不适用（会误报并输出乱码）。
+		rules: {
+			'obsidianmd/ui/sentence-case': 'off',
+		},
+	},
+	{
+		// 纯渲染层刻意使用标准 DOM（而非 Obsidian 的 createEl 运行时增强），
+		// 以便在 jsdom 下脱离 Obsidian 运行时做单元测试。见 src/ui/dom.ts。
+		files: ['src/ui/**/*.ts', 'tests/**/*.ts', '__mocks__/**/*.ts'],
+		rules: {
+			'obsidianmd/prefer-create-el': 'off',
+		},
+	},
+	{
 		// 测试只在 Node 下运行，不进插件产物，可自由使用 Node API
 		files: ['tests/**/*.ts'],
 		languageOptions: {
