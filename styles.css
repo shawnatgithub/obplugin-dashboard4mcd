@@ -1,8 +1,717 @@
 /*
+ * MCD 宏观数据面板 · 样式层
+ *
+ * 来源：prototype/mcd-console（Figma 原型，视觉基准）。
+ * 规则（docs/宏观数据面板_Figma原型提示词.md §6）：
+ *   - 表面色一律改接 Obsidian 主题变量，深浅主题自动跟随；
+ *   - 仅强调绿与三个语义色由插件自持，可被用户主题变量覆盖；
+ *   - 数值（间距、字号、圆角、描边）以原型源码为准，不以截图为准。
+ *
+ * 令牌名与 prototype/mcd-console/src/index.css 一一对应（前缀 --mcd-），
+ * 由 tests/tokens.spec.ts 校验覆盖关系。图表由 ECharts 渲染，此处不含图表样式。
+ */
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+/* ---------- 1. 令牌 ---------- */
 
-If your plugin does not need CSS, delete this file.
+.mcd-root {
+	/* 表面：跟随 Obsidian 主题 */
+	--mcd-bg: var(--background-primary);
+	--mcd-card: var(--background-secondary);
+	--mcd-stroke: var(--background-modifier-border);
+	--mcd-text: var(--text-normal);
+	--mcd-muted: var(--text-muted);
+	--mcd-hover: var(--background-modifier-hover);
+	--mcd-chrome: var(--background-secondary-alt);
+	--mcd-pop: var(--background-primary);
 
-*/
+	/* 插件自持：一个强调色 + 三个语义色 */
+	--mcd-accent: #4ec9a5;
+	--mcd-amber: #d9a441;
+	--mcd-red: #e05d5d;
+	--mcd-stale: #6b6b6b;
+
+	/* 图表与线框用色（ECharts 亦从此取色，保持单一来源） */
+	--mcd-grid: var(--background-modifier-border);
+	--mcd-wire: rgba(136, 136, 136, 0.55);
+
+	/* 间距栅格（原型：4 / 8 / 12 / 16 / 20 / 24） */
+	--mcd-sp-1: 4px;
+	--mcd-sp-2: 8px;
+	--mcd-sp-3: 12px;
+	--mcd-sp-4: 16px;
+	--mcd-sp-5: 20px;
+	--mcd-sp-6: 24px;
+
+	/* 圆角 */
+	--mcd-radius-card: 10px;
+	--mcd-radius-control: 8px;
+	--mcd-radius-chip: 6px;
+
+	/* 字号 */
+	--mcd-fs-micro: 10px;
+	--mcd-fs-small: 11px;
+	--mcd-fs-caption: 12px;
+	--mcd-fs-body: 13px;
+	--mcd-fs-label: 14px;
+	--mcd-fs-title: 15px;
+	--mcd-fs-value: 30px;
+	--mcd-fs-value-xl: 40px;
+
+	/* 控件高度 */
+	--mcd-h-control: 30px;
+	--mcd-h-toolbar: 48px;
+
+	background: var(--mcd-bg);
+	color: var(--mcd-text);
+	font-size: var(--mcd-fs-body);
+	line-height: 1.5;
+}
+
+/* 浅色主题下自持色需压深，保持语义一致 */
+.theme-light .mcd-root {
+	--mcd-accent: #0e8a6a;
+	--mcd-amber: #b7791f;
+	--mcd-red: #c94040;
+	--mcd-stale: #b0b0b0;
+	--mcd-wire: rgba(0, 0, 0, 0.3);
+}
+
+/* ---------- 2. 排版与工具类 ---------- */
+
+/* 数值一律等宽 + tabular figures（原型 .mono / .num） */
+.mcd-mono {
+	font-family: var(--font-monospace);
+	font-variant-numeric: tabular-nums;
+}
+
+.mcd-tabular {
+	font-variant-numeric: tabular-nums;
+}
+
+.mcd-muted {
+	color: var(--mcd-muted);
+}
+
+.mcd-fs-sm {
+	font-size: var(--mcd-fs-small);
+}
+
+/* ---------- 3. 视图骨架 ---------- */
+
+.mcd-view {
+	display: flex;
+	flex-direction: column;
+	min-height: 100%;
+	background: var(--mcd-bg);
+	color: var(--mcd-text);
+}
+
+.mcd-header {
+	position: sticky;
+	top: 0;
+	z-index: var(--layer-status-bar, 10);
+	display: flex;
+	align-items: center;
+	gap: var(--mcd-sp-4);
+	height: var(--mcd-h-toolbar);
+	padding: 0 var(--mcd-sp-6);
+	border-bottom: 1px solid var(--mcd-stroke);
+	background: var(--mcd-bg);
+}
+
+.mcd-header__title {
+	font-size: var(--mcd-fs-title);
+	font-weight: 600;
+}
+
+.mcd-header__crumb {
+	font-size: var(--mcd-fs-caption);
+	color: var(--mcd-muted);
+}
+
+.mcd-header__meta {
+	margin-left: auto;
+	font-size: var(--mcd-fs-caption);
+	color: var(--mcd-muted);
+}
+
+.mcd-main {
+	display: flex;
+	flex-direction: column;
+	gap: var(--mcd-sp-6);
+	padding: var(--mcd-sp-6);
+}
+
+/* 详情页窄版（Obsidian 标签页实际宽度 720–960px） */
+.mcd-main--narrow {
+	max-width: 960px;
+}
+
+/* ---------- 4. 分组与卡片栅格 ---------- */
+
+.mcd-group {
+	display: flex;
+	flex-direction: column;
+	gap: var(--mcd-sp-3);
+}
+
+.mcd-group__head {
+	display: flex;
+	align-items: baseline;
+	gap: var(--mcd-sp-3);
+}
+
+.mcd-group__title {
+	font-size: var(--mcd-fs-body);
+	font-weight: 600;
+}
+
+.mcd-group__count {
+	font-size: var(--mcd-fs-caption);
+	color: var(--mcd-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+/* 组标题后的分隔线 */
+.mcd-group__rule {
+	flex: 1;
+	height: 1px;
+	background: var(--mcd-stroke);
+}
+
+.mcd-grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: var(--mcd-sp-3);
+}
+
+@media (max-width: 1100px) {
+	.mcd-grid {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 820px) {
+	.mcd-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+/* ---------- 5. 指标卡片 ---------- */
+
+.mcd-card {
+	display: flex;
+	flex-direction: column;
+	gap: var(--mcd-sp-3);
+	padding: var(--mcd-sp-4);
+	border: 1px solid var(--mcd-stroke);
+	border-radius: var(--mcd-radius-card);
+	background: var(--mcd-card);
+	color: var(--mcd-text);
+	text-align: left;
+	cursor: pointer;
+	transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.mcd-card:hover {
+	border-color: color-mix(in srgb, var(--mcd-text) 30%, transparent);
+}
+
+/* 选中态：强调绿描边 + 顶部 2px 内描边 */
+.mcd-card.is-selected {
+	border-color: var(--mcd-accent);
+	box-shadow: inset 0 2px 0 var(--mcd-accent);
+}
+
+.mcd-card:focus-visible {
+	outline: none;
+	border-color: var(--mcd-accent);
+}
+
+/* 禁用（数据源未接入）：虚线描边 + 50% 透明，不报错不留白 */
+.mcd-card.is-disabled {
+	border-style: dashed;
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.mcd-card__row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--mcd-sp-2);
+}
+
+.mcd-card__name {
+	flex: 1;
+	min-width: 0;
+	font-size: var(--mcd-fs-caption);
+	color: var(--mcd-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.mcd-card.is-selected .mcd-card__name {
+	color: var(--mcd-text);
+}
+
+/* 当前值 */
+.mcd-card__value {
+	display: flex;
+	align-items: baseline;
+	gap: var(--mcd-sp-1);
+	font-size: var(--mcd-fs-value);
+	font-weight: 700;
+	line-height: 1;
+	font-variant-numeric: tabular-nums;
+}
+
+.mcd-card__unit {
+	font-size: var(--mcd-fs-label);
+	font-weight: 700;
+	color: var(--mcd-muted);
+}
+
+.mcd-card__kind {
+	margin-left: var(--mcd-sp-1);
+	font-size: var(--mcd-fs-micro);
+	color: var(--mcd-muted);
+}
+
+/* 迷你折线区（实现时由 ECharts sparkline 填充，高度基准 40px） */
+.mcd-spark {
+	width: 100%;
+	height: 40px;
+}
+
+.mcd-card__foot {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--mcd-sp-2);
+	padding-top: var(--mcd-sp-2);
+	border-top: 1px solid var(--mcd-stroke);
+	font-size: var(--mcd-fs-small);
+	color: var(--mcd-muted);
+}
+
+/* ---------- 6. 新鲜度圆点与徽标 ---------- */
+
+.mcd-dot {
+	display: inline-block;
+	width: 6px;
+	height: 6px;
+	flex-shrink: 0;
+	border-radius: 999px;
+	background: var(--mcd-muted);
+}
+
+.mcd-dot.is-fresh {
+	background: var(--mcd-accent);
+}
+
+.mcd-dot.is-aging {
+	background: var(--mcd-amber);
+}
+
+.mcd-dot.is-stale {
+	background: var(--mcd-stale);
+}
+
+.mcd-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--mcd-sp-1);
+	padding: 2px 6px;
+	border: 1px solid color-mix(in srgb, var(--mcd-muted) 40%, transparent);
+	border-radius: var(--mcd-radius-chip);
+	font-size: var(--mcd-fs-small);
+	color: var(--mcd-muted);
+}
+
+.mcd-badge.is-amber {
+	color: var(--mcd-amber);
+	border-color: color-mix(in srgb, var(--mcd-amber) 40%, transparent);
+}
+
+.mcd-badge.is-red {
+	color: var(--mcd-red);
+	border-color: color-mix(in srgb, var(--mcd-red) 40%, transparent);
+}
+
+/* NEW 徽标：强调色描边 + 字重 */
+.mcd-badge.is-new {
+	padding: 1px 6px;
+	color: var(--mcd-accent);
+	border-color: color-mix(in srgb, var(--mcd-accent) 45%, transparent);
+	font-size: var(--mcd-fs-micro);
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	margin-left: auto;
+}
+
+/* 变化量（单位用 pct，见 README 待裁决项 3） */
+.mcd-delta {
+	font-variant-numeric: tabular-nums;
+	font-size: var(--mcd-fs-label);
+}
+
+/* ---------- 7. 控件：分段器 / 下拉 / 按钮 ---------- */
+
+.mcd-segmented {
+	display: inline-flex;
+	align-items: center;
+	padding: 2px;
+	border: 1px solid var(--mcd-stroke);
+	border-radius: var(--mcd-radius-control);
+	background: var(--mcd-card);
+}
+
+.mcd-segmented__item {
+	padding: 4px 12px;
+	border: none;
+	border-radius: var(--mcd-radius-chip);
+	background: transparent;
+	color: var(--mcd-muted);
+	font-size: var(--mcd-fs-body);
+	cursor: pointer;
+	transition: background 0.12s ease, color 0.12s ease;
+}
+
+.mcd-segmented__item:hover {
+	background: var(--mcd-hover);
+	color: var(--mcd-text);
+}
+
+.mcd-segmented__item:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 1px var(--mcd-accent);
+}
+
+.mcd-segmented__item.is-selected {
+	background: color-mix(in srgb, var(--mcd-accent) 14%, transparent);
+	color: var(--mcd-accent);
+	font-weight: 500;
+}
+
+/* 置灰项：必须同时给出原因（tooltip 或行内标注），无静默禁用 */
+.mcd-segmented__item.is-disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.mcd-segmented__item.is-disabled:hover {
+	background: transparent;
+	color: var(--mcd-muted);
+}
+
+/* 工具栏容器：一行，自动换行 */
+.mcd-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--mcd-sp-5);
+	padding: var(--mcd-sp-3) var(--mcd-sp-4);
+	border: 1px solid var(--mcd-stroke);
+	border-radius: var(--mcd-radius-card);
+	background: var(--mcd-card);
+}
+
+.mcd-select {
+	height: var(--mcd-h-control);
+	padding: 0 var(--mcd-sp-2);
+	border: 1px solid var(--mcd-stroke);
+	border-radius: var(--mcd-radius-control);
+	background: var(--mcd-card);
+	color: var(--mcd-text);
+	font-size: var(--mcd-fs-body);
+	cursor: pointer;
+}
+
+.mcd-select:hover {
+	border-color: color-mix(in srgb, var(--mcd-text) 30%, transparent);
+}
+
+.mcd-select:focus {
+	border-color: var(--mcd-accent);
+	outline: none;
+}
+
+.mcd-select:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.mcd-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--mcd-sp-2);
+	height: var(--mcd-h-control);
+	padding: 0 var(--mcd-sp-3);
+	border: 1px solid var(--mcd-stroke);
+	border-radius: var(--mcd-radius-control);
+	background: transparent;
+	color: var(--mcd-text);
+	font-size: var(--mcd-fs-body);
+	cursor: pointer;
+	transition: border-color 0.12s ease, color 0.12s ease, background 0.12s ease;
+}
+
+.mcd-button:hover:not(:disabled) {
+	border-color: var(--mcd-accent);
+	color: var(--mcd-accent);
+}
+
+.mcd-button:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 1px var(--mcd-accent);
+}
+
+.mcd-button.is-selected {
+	border-color: var(--mcd-accent);
+	background: color-mix(in srgb, var(--mcd-accent) 14%, transparent);
+	color: var(--mcd-accent);
+}
+
+.mcd-button:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+/* 图标按钮（刷新） */
+.mcd-icon-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	border: none;
+	border-radius: var(--mcd-radius-control);
+	background: transparent;
+	color: var(--mcd-muted);
+	cursor: pointer;
+}
+
+.mcd-icon-button:hover {
+	background: var(--mcd-hover);
+	color: var(--mcd-text);
+}
+
+.mcd-icon-button:focus-visible {
+	outline: 1px solid var(--mcd-accent);
+}
+
+/* 叠加已选项 chip */
+.mcd-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--mcd-sp-2);
+	padding: 2px 8px;
+	border: 1px solid color-mix(in srgb, var(--mcd-accent) 40%, transparent);
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--mcd-accent) 10%, transparent);
+	color: var(--mcd-text);
+	font-size: var(--mcd-fs-small);
+}
+
+.mcd-chip__remove {
+	cursor: pointer;
+	color: var(--mcd-muted);
+}
+
+.mcd-chip__remove:hover {
+	color: var(--mcd-red);
+}
+
+/* ---------- 8. tooltip（禁用原因的唯一出口） ---------- */
+
+.mcd-tip {
+	position: relative;
+	display: inline-flex;
+}
+
+.mcd-tip__bubble {
+	position: absolute;
+	bottom: 100%;
+	right: 0;
+	z-index: 20;
+	margin-bottom: 6px;
+	max-width: 320px;
+	padding: var(--mcd-sp-1) var(--mcd-sp-2);
+	border: 1px solid var(--mcd-stroke);
+	border-radius: var(--mcd-radius-chip);
+	background: var(--mcd-pop);
+	color: var(--mcd-text);
+	font-size: var(--mcd-fs-small);
+	white-space: normal;
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity 0.12s ease;
+}
+
+.mcd-tip:hover .mcd-tip__bubble,
+.mcd-tip__trigger:focus-visible + .mcd-tip__bubble {
+	opacity: 1;
+}
+
+/* ---------- 9. 说明条与告警横幅 ---------- */
+
+/* 春节合并等口径说明：浅琥珀底 */
+.mcd-note {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--mcd-sp-2);
+	padding: var(--mcd-sp-2) var(--mcd-sp-3);
+	border: 1px solid color-mix(in srgb, var(--mcd-amber) 35%, transparent);
+	border-radius: var(--mcd-radius-card);
+	background: color-mix(in srgb, var(--mcd-amber) 10%, transparent);
+	color: var(--mcd-text);
+	font-size: var(--mcd-fs-caption);
+}
+
+/* 兜底态横幅：全部视图选项不可用 */
+.mcd-banner {
+	display: flex;
+	align-items: center;
+	gap: var(--mcd-sp-2);
+	padding: var(--mcd-sp-2) var(--mcd-sp-3);
+	border: 1px solid color-mix(in srgb, var(--mcd-amber) 45%, transparent);
+	border-radius: var(--mcd-radius-card);
+	background: color-mix(in srgb, var(--mcd-amber) 10%, transparent);
+	font-size: var(--mcd-fs-body);
+}
+
+.mcd-banner .mcd-dot {
+	background: var(--mcd-amber);
+}
+
+/* 可折叠解读条 */
+.mcd-collapse__summary {
+	cursor: pointer;
+	color: var(--mcd-muted);
+	font-size: var(--mcd-fs-body);
+	list-style: none;
+}
+
+.mcd-collapse__body {
+	padding-top: var(--mcd-sp-2);
+	color: var(--mcd-text);
+	font-size: var(--mcd-fs-caption);
+}
+
+/* ---------- 10. 数据表 ---------- */
+
+.mcd-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: var(--mcd-fs-caption);
+	font-variant-numeric: tabular-nums;
+}
+
+.mcd-table th,
+.mcd-table td {
+	padding: var(--mcd-sp-2) var(--mcd-sp-3);
+	border-bottom: 1px solid var(--mcd-stroke);
+	text-align: left;
+}
+
+.mcd-table th {
+	color: var(--mcd-muted);
+	font-weight: 500;
+}
+
+/* 采集失败行：整行浅红底，失败不静默 */
+.mcd-table tr.is-failed td {
+	background: color-mix(in srgb, var(--mcd-red) 10%, transparent);
+}
+
+/* ---------- 11. 图表容器 ---------- */
+
+.mcd-chart {
+	width: 100%;
+	height: 320px;
+}
+
+.mcd-chart--spark {
+	height: 40px;
+}
+
+/* 图表不可用时回落到原型线框态 */
+.mcd-wireframe {
+	border: 1px dashed var(--mcd-stroke);
+	border-radius: var(--mcd-radius-card);
+	padding: var(--mcd-sp-3);
+	color: var(--mcd-muted);
+}
+
+/* ---------- 12. 空状态 / 首次运行 ---------- */
+
+.mcd-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--mcd-sp-3);
+	padding: 80px var(--mcd-sp-6);
+	text-align: center;
+}
+
+.mcd-empty__icon {
+	display: grid;
+	place-items: center;
+	width: 56px;
+	height: 56px;
+	border: 1px solid var(--mcd-stroke);
+	border-radius: var(--mcd-radius-control);
+	background: var(--mcd-card);
+	color: var(--mcd-muted);
+}
+
+.mcd-empty__title {
+	font-size: var(--mcd-fs-value);
+	font-weight: 600;
+}
+
+.mcd-steps {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: var(--mcd-sp-3);
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	max-width: 760px;
+}
+
+.mcd-steps li {
+	padding: var(--mcd-sp-4);
+	border: 1px solid var(--mcd-stroke);
+	border-radius: var(--mcd-radius-card);
+	background: var(--mcd-card);
+	font-size: var(--mcd-fs-body);
+	text-align: left;
+}
+
+/* ---------- 13. 设置页（Obsidian SettingTab 内的分区） ---------- */
+
+.mcd-settings__section-title {
+	margin: var(--mcd-sp-6) 0 var(--mcd-sp-2);
+	font-size: var(--mcd-fs-small);
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--mcd-muted);
+}
+
+/* 数据目录校验状态徽标 */
+.mcd-status.is-ok {
+	color: var(--mcd-accent);
+}
+
+.mcd-status.is-error {
+	color: var(--mcd-red);
+}
+
+.mcd-input.is-invalid {
+	border-color: var(--mcd-red);
+}
