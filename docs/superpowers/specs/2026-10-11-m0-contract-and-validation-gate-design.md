@@ -614,6 +614,7 @@ v0.1 原文**一律不改**；以下 9 处按开发计划 §0 规则 2 登记为
 | Obsidian CLI | 已注册；Obsidian 未运行时报 "The CLI is unable to find Obsidian" |
 | 现有资产 | `styles.css` 令牌层 + `tests/tokens.spec.ts` 门禁已就位（提交 bf1aaa6）；`src/` 仍是 sample 骨架 |
 | 数据侧 | `<Vault>/MacroData/` 不存在；`D:\Codex\MacroDataETL`、`D:\Codex\venv-pandas2`、`D:\Codex\venv-akshare` 均不存在；`D:\Codex` 下无任何现成 venv，akshare 未全局安装（`importlib.metadata.requires('akshare')` 抛 `PackageNotFoundError`） |
+| 双环境运行期冒烟（退出标准 #13） | 环境A `pandas 2.3.3` → `SMOKE PASS via macro_australia_retail_rate_monthly rows=210`（exit `0`）；环境B `pandas 3.0.6` → `SMOKE PASS via macro_australia_retail_rate_monthly rows=210`（exit `0`）。按 §4.5 判定规则（两侧均 0 时选 A）选定 **环境A**，`MCD_PYTHON=D:\Codex\venv-pandas2\Scripts\python.exe`。`assert_env` 对选定环境退 0、对另一个退 1（已验证） |
 
 ## 17. §N 假设与边界
 
