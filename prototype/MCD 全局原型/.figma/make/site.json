@@ -1,0 +1,10 @@
+{
+  "description": "Access and analyze Chinese macroeconomic and consumer data in a professional dashboard, empowering shopping mall managers to make informed monthly decisions.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

@@ -1,0 +1,59 @@
+@import 'tailwindcss';
+
+[data-theme='dark'] {
+  --bg: #1e1e1e;
+  --card: #262626;
+  --stroke: rgba(255, 255, 255, 0.1);
+  --text: #dcddde;
+  --muted: #999999;
+  --accent: #4ec9a5;
+  --amber: #d9a441;
+  --red: #e05d5d;
+  --stale: #6b6b6b;
+  --grid: rgba(255, 255, 255, 0.1);
+  --wire: rgba(255, 255, 255, 0.28);
+  --hover: rgba(255, 255, 255, 0.04);
+  --chrome: #1a1a1a;
+  --pop: #333333;
+}
+
+[data-theme='light'] {
+  --bg: #ffffff;
+  --card: #f6f6f6;
+  --stroke: rgba(0, 0, 0, 0.1);
+  --text: #222222;
+  --muted: #6e6e6e;
+  --accent: #0e8a6a;
+  --amber: #b7791f;
+  --red: #c94040;
+  --stale: #b0b0b0;
+  --grid: rgba(0, 0, 0, 0.12);
+  --wire: rgba(0, 0, 0, 0.3);
+  --hover: rgba(0, 0, 0, 0.035);
+  --chrome: #f0f0f0;
+  --pop: #ffffff;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #161616;
+  font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', 'Segoe UI', sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+.mono {
+  font-family: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
