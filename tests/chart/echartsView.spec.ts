@@ -122,6 +122,76 @@ describe('renderChart — ECharts path', () => {
 	});
 });
 
+describe('renderChart — host re-measurement (collapsed-axis regression)', () => {
+	// Regression guard for the CR-2026-10-13 follow-up: a leaf rendered before
+	// layout gives ECharts a 0-width host, which bakes the 100px default and
+	// squashes the x-axis into a sliver. The glue must observe the host and
+	// resize the chart when the real width arrives, then release the observer.
+	class FakeResizeObserver {
+		static last: FakeResizeObserver | null = null;
+
+		readonly targets: Element[] = [];
+
+		disconnects = 0;
+
+		constructor(private readonly onResize: () => void) {
+			FakeResizeObserver.last = this;
+		}
+
+		observe(target: Element): void {
+			this.targets.push(target);
+		}
+
+		disconnect(): void {
+			this.disconnects += 1;
+		}
+
+		fire(): void {
+			this.onResize();
+		}
+	}
+
+	const globals = globalThis as { ResizeObserver?: unknown };
+
+	beforeEach(() => {
+		FakeResizeObserver.last = null;
+	});
+
+	afterEach(() => {
+		delete globals.ResizeObserver;
+	});
+
+	it('observes the host and resizes the chart when the layout settles', () => {
+		const chart = makeFakeChart();
+		initMock.mockReturnValue(chart as unknown as InitReturn);
+		globals.ResizeObserver = FakeResizeObserver;
+
+		const handle = renderChart(container, model());
+
+		const observer = FakeResizeObserver.last;
+		expect(observer).not.toBeNull();
+		expect(observer?.targets).toEqual([container]);
+
+		observer?.fire();
+		expect(chart.resize).toHaveBeenCalledTimes(1);
+
+		handle.dispose();
+		expect(observer?.disconnects).toBe(1);
+		expect(chart.dispose).toHaveBeenCalledTimes(1);
+	});
+
+	it('still returns a disposable handle when ResizeObserver is unavailable', () => {
+		const chart = makeFakeChart();
+		initMock.mockReturnValue(chart as unknown as InitReturn);
+		delete globals.ResizeObserver;
+
+		const handle = renderChart(container, model());
+
+		handle.dispose();
+		expect(chart.dispose).toHaveBeenCalledTimes(1);
+	});
+});
+
 describe('renderChart — SVG fallback (D-M3-4)', () => {
 	it('draws the SVG chart and never throws when init fails', () => {
 		initMock.mockImplementation(() => {

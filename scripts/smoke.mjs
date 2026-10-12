@@ -165,6 +165,21 @@ record('详情视图可打开并挂载', Number(detailLeaf.value) >= 1, `leaves=
 const hasChart = () => evalJs(
 	`(function(){var l=app.workspace.getLeavesOfType('${DETAIL_VIEW_TYPE}')[0];if(!l)return 'no-leaf';var c=l.view.contentEl;return (c.querySelector('.mcd-chart--echarts canvas')!==null)||(c.querySelector('.mcd-chart__svg')!==null);})()`,
 );
+// Geometry guard (2026-10-13 regression): “the chart exists” once passed while
+// the canvas sat at ECharts' 100px fallback width inside a ~900px host — the
+// x-axis crushed into an unreadable sliver. Compare the canvas width against
+// its host figure so a collapsed axis fails the smoke instead of shipping.
+const chartGeometry = () => evalJs(
+	`(function(){var l=app.workspace.getLeavesOfType('${DETAIL_VIEW_TYPE}')[0];if(!l)return 'no-leaf';var c=l.view.contentEl;var host=c.querySelector('figure.mcd-chart');if(!host)return 'no-host';var cv=c.querySelector('.mcd-chart--echarts canvas');if(!cv)return c.querySelector('.mcd-chart__svg')!==null?'svg':'no-chart';return host.clientWidth+'x'+cv.clientWidth;})()`,
+);
+const geometryOk = (raw) => {
+	if (raw === 'svg') return true; // SVG fallback scales with its container
+	const m = /^(\d+)x(\d+)$/.exec(String(raw));
+	if (!m) return false;
+	const host = Number(m[1]);
+	const cv = Number(m[2]);
+	return host > 0 && cv >= host * 0.8;
+};
 const bodyRows = () => evalJs(
 	`(function(){var l=app.workspace.getLeavesOfType('${DETAIL_VIEW_TYPE}')[0];return l?l.view.contentEl.querySelectorAll('tbody tr').length:-1;})()`,
 );
@@ -201,6 +216,13 @@ const lineChart = hasChart();
 const lineRows = Number(bodyRows().value);
 record('切图型→折线：主图恢复', lineChart.value === 'true', `pick=${toLine.value} chart=${lineChart.value}`);
 record('切图型→折线：数据行数不变', lineRows === baseRows, `rows=${lineRows} base=${baseRows}`);
+
+const lineGeom = chartGeometry();
+record(
+	'主图画布填满宿主宽度（横轴可读，不被压扁）',
+	geometryOk(lineGeom.value),
+	`geom=${lineGeom.value}`,
+);
 
 // 7c. 切变换到同比（spec §9-2）：消费 retail_sales_total_yoy sibling，主图按同比
 //     重画，但数据表仍是原值序列（表与变换无关），行数不变。
@@ -291,6 +313,12 @@ if (annualAvailable) {
 		'切「年度」：主图渲染（年度柱状）',
 		annualChart.value === 'true',
 		`chart=${annualChart.value}`,
+	);
+	const annualGeom = chartGeometry();
+	record(
+		'切「年度」：主图画布填满宿主宽度',
+		geometryOk(annualGeom.value),
+		`geom=${annualGeom.value}`,
 	);
 
 	// 7f-4. 数据表变为年份行：每行「期」列是 4 位年份（YYYY），而非 YYYY-MM。

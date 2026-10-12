@@ -85,7 +85,23 @@ export function renderChart(
 			height: model.layout === 'dual' ? DUAL_CHART_HEIGHT : CHART_HEIGHT,
 		});
 		chart.setOption(option);
-		return { dispose: () => chart.dispose() };
+		// The leaf is often not laid out yet when the composer draws (clientWidth
+		// 0), and ECharts then bakes its 100px default width — a chart squashed
+		// into a vertical sliver with no readable x-axis. Observe the host so the
+		// canvas re-measures as soon as it gets a real width, and again on every
+		// later relayout (split resize, sidebar toggle). The observer is torn down
+		// with the chart so a re-render never leaks one.
+		let observer: ResizeObserver | null = null;
+		if (typeof ResizeObserver !== 'undefined') {
+			observer = new ResizeObserver(() => chart.resize());
+			observer.observe(container);
+		}
+		return {
+			dispose: () => {
+				observer?.disconnect();
+				chart.dispose();
+			},
+		};
 	} catch {
 		return renderChartSvg(container, model);
 	}
