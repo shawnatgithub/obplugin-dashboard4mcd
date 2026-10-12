@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { DEFAULT_VIEW_STATE, type ViewState } from '../src/analysis/viewState';
 import { parseCapabilities } from '../src/contract/parse';
 import { reasonText } from '../src/contract/reasonText';
 import type { CapabilitiesV1, FullPanel, StubPanel } from '../src/contract/types';
-import { UNSUPPORTED_FALLBACK, buildToolbar } from '../src/ui/toolbar';
+import { buildToolbar } from '../src/ui/toolbar';
 
 /**
  * Capabilities graying engine tests (T3-5). The toolbar is built from the real
@@ -41,11 +42,21 @@ function panelFor(key: string): FullPanel | StubPanel {
 	return p;
 }
 
-function toolbarFor(key: string | null): HTMLElement {
+function toolbarFor(
+	key: string | null,
+	view?: ViewState,
+	onChange: (patch: Partial<ViewState>) => void = () => {},
+): HTMLElement {
 	const panel = key === null ? null : panelFor(key);
 	const root = document.createElement('div');
 	document.body.appendChild(root);
-	root.appendChild(buildToolbar({ panel }));
+	root.appendChild(
+		buildToolbar({
+			panel,
+			view: view ?? { ...DEFAULT_VIEW_STATE, key: key ?? '' },
+			onChange,
+		}),
+	);
 	return root.querySelector<HTMLElement>('.mcd-toolbar')!;
 }
 
@@ -76,6 +87,24 @@ function selectedValues(seg: HTMLElement): string[] {
 		.map((i) => i.dataset.value!);
 }
 
+function overlaySelect(toolbar: HTMLElement): HTMLSelectElement {
+	const sel = segment(toolbar, '叠加').querySelector<HTMLSelectElement>(
+		'select.mcd-select',
+	);
+	if (!sel) throw new Error('overlay select not found');
+	return sel;
+}
+
+function overlayOption(sel: HTMLSelectElement, value: string): HTMLOptionElement {
+	const found = Array.from(sel.options).find((o) => o.value === value);
+	if (!found) throw new Error(`overlay option not found: ${value}`);
+	return found;
+}
+
+function optionValues(sel: HTMLSelectElement): string[] {
+	return Array.from(sel.options).map((o) => o.value);
+}
+
 afterEach(() => {
 	document.body.textContent = '';
 });
@@ -87,7 +116,7 @@ describe('buildToolbar — layout', () => {
 		const labels = Array.from(
 			toolbar.querySelectorAll('.mcd-toolbar__label'),
 		).map((l) => l.textContent);
-		expect(labels).toEqual(['模式', '图型', '变换', '叠加']);
+		expect(labels).toEqual(['模式', '图型', '变换', '叠加', '范围', '平滑']);
 	});
 });
 
@@ -120,11 +149,12 @@ describe('buildToolbar — full panel (retail_sales_total)', () => {
 		expect(mom.title).toBe(reasonText('DERIVED_NOT_FOUND'));
 	});
 
-	it('lists a supported overlay candidate, enabled and not active', () => {
-		const seg = segment(toolbar, '叠加');
-		const overlay = item(seg, 'cpi_national_yoy');
-		expect(overlay.disabled).toBe(false);
-		expect(selectedValues(seg)).toEqual([]);
+	it('offers 无 plus a supported overlay candidate, enabled and unselected', () => {
+		const sel = overlaySelect(toolbar);
+		expect(optionValues(sel)).toEqual(['none', 'cpi_national_yoy']);
+		expect(overlayOption(sel, 'cpi_national_yoy').disabled).toBe(false);
+		expect(sel.disabled).toBe(false);
+		expect(sel.value).toBe('none');
 	});
 });
 
@@ -145,9 +175,9 @@ describe('buildToolbar — fallback active (cpi_national_yoy)', () => {
 		expect(selectedValues(seg)).toEqual(['yoy']);
 	});
 
-	it('grays an incompatible overlay with its reason', () => {
-		const seg = segment(toolbar, '叠加');
-		const overlay = item(seg, 'retail_sales_total');
+	it('grays a unit-mismatched overlay option with its reason', () => {
+		const sel = overlaySelect(toolbar);
+		const overlay = overlayOption(sel, 'retail_sales_total');
 		expect(overlay.disabled).toBe(true);
 		expect(overlay.title).toBe(reasonText('UNIT_MISMATCH'));
 	});
@@ -176,10 +206,13 @@ describe('buildToolbar — stub panel (shanghai_finance_quarterly)', () => {
 	const toolbar = toolbarFor('shanghai_finance_quarterly');
 
 	it('grays every option across all segments with the stub reason', () => {
+		// The overlay control is a <select> now, so the grayed buttons live in
+		// the mode / chart / transform / range / smoothing segments.
 		const all = items(segment(toolbar, '模式'))
 			.concat(items(segment(toolbar, '图型')))
 			.concat(items(segment(toolbar, '变换')))
-			.concat(items(segment(toolbar, '叠加')));
+			.concat(items(segment(toolbar, '范围')))
+			.concat(items(segment(toolbar, '平滑')));
 		expect(all.length).toBeGreaterThan(0);
 		expect(all.every((i) => i.disabled)).toBe(true);
 		expect(
@@ -195,13 +228,10 @@ describe('buildToolbar — stub panel (shanghai_finance_quarterly)', () => {
 });
 
 describe('buildToolbar — empty overlays (retail_sales_total_yoy)', () => {
-	it('renders a single disabled 无 option with the generic tooltip', () => {
-		const seg = segment(toolbarFor('retail_sales_total_yoy'), '叠加');
-		const none = items(seg);
-		expect(none).toHaveLength(1);
-		expect(none[0]!.dataset.value).toBe('none');
-		expect(none[0]!.disabled).toBe(true);
-		expect(none[0]!.title).toBe(UNSUPPORTED_FALLBACK);
+	it('renders a single 无 option and disables the control with no candidates', () => {
+		const sel = overlaySelect(toolbarFor('retail_sales_total_yoy'));
+		expect(optionValues(sel)).toEqual(['none']);
+		expect(sel.disabled).toBe(true);
 	});
 });
 
@@ -211,11 +241,113 @@ describe('buildToolbar — absent capabilities', () => {
 		expect(selectedValues(segment(toolbar, '模式'))).toEqual(['calendar']);
 		expect(selectedValues(segment(toolbar, '图型'))).toEqual(['line']);
 		expect(selectedValues(segment(toolbar, '变换'))).toEqual(['level']);
-		// The three capability segments are fully enabled; only the structural
-		// 叠加 placeholder (no candidates) stays disabled.
+		// The three capability segments are fully enabled; the overlay select
+		// offers only 无 (no candidates) and is disabled as honestly empty.
 		const capabilityItems = items(segment(toolbar, '模式'))
 			.concat(items(segment(toolbar, '图型')))
 			.concat(items(segment(toolbar, '变换')));
 		expect(capabilityItems.some((i) => i.disabled)).toBe(false);
+		expect(optionValues(overlaySelect(toolbar))).toEqual(['none']);
+	});
+});
+
+describe('buildToolbar — controlled interaction (M3-T4)', () => {
+	it('emits a chartType patch when an enabled chart button is clicked', () => {
+		const onChange = jest.fn();
+		const toolbar = toolbarFor('retail_sales_total', undefined, onChange);
+		item(segment(toolbar, '图型'), 'table').click();
+		expect(onChange).toHaveBeenCalledWith({ chartType: 'table' });
+	});
+
+	it('emits mode / transform / range patches from their segments', () => {
+		const onChange = jest.fn();
+		const toolbar = toolbarFor('retail_sales_total', undefined, onChange);
+		item(segment(toolbar, '模式'), 'yoy').click();
+		item(segment(toolbar, '变换'), 'yoy').click();
+		item(segment(toolbar, '范围'), '1y').click();
+		expect(onChange).toHaveBeenNthCalledWith(1, { mode: 'yoy' });
+		expect(onChange).toHaveBeenNthCalledWith(2, { transform: 'yoy' });
+		expect(onChange).toHaveBeenNthCalledWith(3, { range: '1y' });
+	});
+
+	it('never fires onChange for a disabled control and never throws', () => {
+		const onChange = jest.fn();
+		const toolbar = toolbarFor('retail_sales_total', undefined, onChange);
+		const mom = item(segment(toolbar, '变换'), 'mom');
+		expect(mom.disabled).toBe(true);
+		expect(() => mom.click()).not.toThrow();
+		expect(onChange).not.toHaveBeenCalled();
+	});
+
+	it('renders the four range options with the persisted one selected', () => {
+		const toolbar = toolbarFor('retail_sales_total', {
+			...DEFAULT_VIEW_STATE,
+			key: 'retail_sales_total',
+			range: '3y',
+		});
+		const seg = segment(toolbar, '范围');
+		expect(items(seg).map((i) => i.dataset.value)).toEqual([
+			'1y',
+			'3y',
+			'5y',
+			'all',
+		]);
+		expect(selectedValues(seg)).toEqual(['3y']);
+	});
+
+	it('reflects smoothing in aria-pressed and toggles it off via onChange', () => {
+		const onChange = jest.fn();
+		const toolbar = toolbarFor(
+			'retail_sales_total',
+			{ ...DEFAULT_VIEW_STATE, key: 'retail_sales_total', smoothing: true },
+			onChange,
+		);
+		const toggle = item(segment(toolbar, '平滑'), 'smoothing');
+		expect(toggle.getAttribute('aria-pressed')).toBe('true');
+		expect(toggle.classList.contains('is-selected')).toBe(true);
+		toggle.click();
+		expect(onChange).toHaveBeenCalledWith({ smoothing: false });
+	});
+
+	it('shows smoothing off by default and turns it on', () => {
+		const onChange = jest.fn();
+		const toolbar = toolbarFor('retail_sales_total', undefined, onChange);
+		const toggle = item(segment(toolbar, '平滑'), 'smoothing');
+		expect(toggle.getAttribute('aria-pressed')).toBe('false');
+		toggle.click();
+		expect(onChange).toHaveBeenCalledWith({ smoothing: true });
+	});
+});
+
+describe('buildToolbar — overlay select (M3-T4)', () => {
+	it('labels an INCOMPATIBLE_REGION candidate 拆分双图 and keeps it selectable', () => {
+		const sel = overlaySelect(toolbarFor('retail_sales_sh_yoy'));
+		const opt = overlayOption(sel, 'retail_sales_total');
+		expect(opt.disabled).toBe(false);
+		expect(opt.textContent).toContain('拆分双图');
+	});
+
+	it('emits an overlay patch on change and null for 无', () => {
+		const onChange = jest.fn();
+		const sel = overlaySelect(
+			toolbarFor('retail_sales_total', undefined, onChange),
+		);
+		sel.value = 'cpi_national_yoy';
+		sel.dispatchEvent(new Event('change'));
+		expect(onChange).toHaveBeenCalledWith({ overlay: 'cpi_national_yoy' });
+		sel.value = 'none';
+		sel.dispatchEvent(new Event('change'));
+		expect(onChange).toHaveBeenCalledWith({ overlay: null });
+	});
+
+	it('reflects the persisted overlay as the selected value', () => {
+		const sel = overlaySelect(
+			toolbarFor('retail_sales_total', {
+				...DEFAULT_VIEW_STATE,
+				key: 'retail_sales_total',
+				overlay: 'cpi_national_yoy',
+			}),
+		);
+		expect(sel.value).toBe('cpi_national_yoy');
 	});
 });

@@ -4,7 +4,7 @@ import {
 	buildChartModel,
 	type ChartSeriesSource,
 } from '../src/analysis/chartModel';
-import { parseViewState } from '../src/analysis/viewState';
+import { parseViewState, type ViewState } from '../src/analysis/viewState';
 import { formatValue, toDetail } from '../src/contract/mapper';
 import {
 	parseCapabilities,
@@ -81,17 +81,26 @@ function render(
 	handlers: DetailHandlers = {},
 ): HTMLElement {
 	const model = toDetail(key, manifest, series, caps);
-	// The composer now takes a pre-built ChartModel plus an injected renderer.
-	// The tests drive it with the pure SVG fallback (no ECharts) and the default
-	// view state, so every asserted string stays a real contract byte.
+	// The composer now takes a pre-built ChartModel, the view state the toolbar
+	// reflects, and an injected renderer. The tests drive it with the pure SVG
+	// fallback (no ECharts) and the default view state, so every asserted string
+	// stays a real contract byte.
+	const view = parseViewState({ key });
 	const chart = buildChartModel(
 		model,
-		parseViewState({ key }),
+		view,
 		new Map<string, ChartSeriesSource>(),
 	);
 	const root = document.createElement('div');
 	document.body.appendChild(root);
-	renderDetail(root, { model, chart, renderChart: renderChartSvg, handlers });
+	renderDetail(root, {
+		model,
+		chart,
+		view,
+		onViewStateChange: () => {},
+		renderChart: renderChartSvg,
+		handlers,
+	});
 	return root;
 }
 
@@ -152,7 +161,7 @@ describe('renderDetail — structure', () => {
 			Array.from(toolbar?.querySelectorAll('.mcd-toolbar__label') ?? []).map(
 				(l) => l.textContent,
 			),
-		).toEqual(['模式', '图型', '变换', '叠加']);
+		).toEqual(['模式', '图型', '变换', '叠加', '范围', '平滑']);
 	});
 });
 
@@ -278,5 +287,44 @@ describe('renderDetail — limited state (S3)', () => {
 		expect(
 			unknown.querySelector('.mcd-detail__fresh .mcd-dot.is-unknown'),
 		).not.toBeNull();
+	});
+});
+
+describe('renderDetail — controlled toolbar (M3-T4)', () => {
+	it('reflects the view state and forwards toolbar changes', () => {
+		const key = 'retail_sales_total';
+		const model = toDetail(key, manifest, seriesByKey.get(key)!, caps);
+		const view: ViewState = { ...parseViewState({ key }), range: '1y' };
+		const chart = buildChartModel(
+			model,
+			view,
+			new Map<string, ChartSeriesSource>(),
+		);
+		const onViewStateChange = jest.fn();
+		const root = document.createElement('div');
+		document.body.appendChild(root);
+		renderDetail(root, {
+			model,
+			chart,
+			view,
+			onViewStateChange,
+			renderChart: renderChartSvg,
+		});
+		const groups = Array.from(
+			root.querySelectorAll<HTMLElement>('.mcd-toolbar__group'),
+		);
+		const range = groups.find(
+			(g) => g.querySelector('.mcd-toolbar__label')?.textContent === '范围',
+		);
+		expect(
+			range?.querySelector('.mcd-segmented__item.is-selected')?.getAttribute(
+				'data-value',
+			),
+		).toBe('1y');
+		const table = Array.from(
+			root.querySelectorAll<HTMLButtonElement>('.mcd-segmented__item'),
+		).find((b) => b.dataset.value === 'table');
+		table?.click();
+		expect(onViewStateChange).toHaveBeenCalledWith({ chartType: 'table' });
 	});
 });

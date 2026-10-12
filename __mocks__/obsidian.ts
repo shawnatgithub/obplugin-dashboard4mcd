@@ -118,6 +118,10 @@ export class ItemView {
 	getIcon(): string {
 		return '';
 	}
+	getState(): Record<string, unknown> {
+		return {};
+	}
+	async setState(_state?: unknown, _result?: unknown): Promise<void> {}
 	async onOpen(): Promise<void> {}
 	async onClose(): Promise<void> {}
 }

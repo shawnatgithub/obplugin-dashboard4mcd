@@ -5,7 +5,7 @@
  * `.mcd-*` classes and the prototype layout (UI-UX §7 Detail): a header (back /
  * title / actions), the meta row (freshness dot + region/frequency/unit chips),
  * the double-timestamp line (§6 数据截至 · 更新于 · 文件名), an optional amber
- * status banner, the SVG main chart (`renderLineChart`), the data table (a
+ * status banner, the injected main chart (`renderChart`), the data table (a
  * missing value is a neutral Badge「缺失」, never 0 — §6), and a source footnote.
  *
  * Pure DOM (no Obsidian), so it is testable under jsdom. The toolbar
@@ -15,6 +15,7 @@
  */
 
 import type { ChartModel } from '../analysis/chartModel';
+import type { ViewState } from '../analysis/viewState';
 import {
 	type DetailModel,
 	formatValue,
@@ -41,8 +42,12 @@ export interface DetailProps {
 	model: DetailModel;
 	/** The renderer-agnostic chart the injected `renderChart` draws. */
 	chart: ChartModel;
+	/** The persisted view state the controlled toolbar reflects (M3-T4). */
+	view: ViewState;
 	/** Injected chart renderer — ECharts in the app, the SVG fallback in tests. */
 	renderChart: RenderChartFn;
+	/** Emits a view-state patch from the toolbar; the caller re-renders. */
+	onViewStateChange: (patch: Partial<ViewState>) => void;
 	handlers?: DetailHandlers;
 }
 
@@ -200,7 +205,13 @@ export function renderDetail(
 	// The toolbar reads the capabilities panel and grays every unsupported
 	// option with its reason_code copy (T3-5); it never throws on a stub or an
 	// absent panel, so S3 needs no branch here.
-	main.appendChild(buildToolbar({ panel: model.panel }));
+	main.appendChild(
+		buildToolbar({
+			panel: model.panel,
+			view: props.view,
+			onChange: props.onViewStateChange,
+		}),
+	);
 
 	// The chart host is a bare figure; the injected renderer owns its classes and
 	// its empty/fallback states, so S3 (limited) needs no branch here either.

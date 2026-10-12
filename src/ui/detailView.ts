@@ -5,8 +5,13 @@
  * loads the data contract through the vault adapter and renders one of three
  * honest states — the onboarding guide when the contract cannot be read, an
  * empty prompt when the leaf has no indicator key, or the detail page built by
- * `renderDetail`. The selected key is persisted in `view_state` so a restored
- * tab reopens the same indicator (spec §8 view_state).
+ * `renderDetail`. The full view state (key + mode / chartType / transform /
+ * overlay / range / smoothing) is persisted in `view_state` so a restored tab
+ * reopens the same indicator the same way (spec §6/§8, G7).
+ *
+ * The toolbar is controlled: an interaction emits a patch, which is folded into
+ * the view state and re-rendered from the cached contract (no extra disk read),
+ * disposing the previous ECharts instance first so a re-render never leaks.
  *
  * All mapping and IO live in the pure `contract/` modules, so this file stays
  * lifecycle-only and never throws on a degraded contract.
@@ -18,8 +23,12 @@ import {
 	buildChartModel,
 	type ChartSeriesSource,
 } from '../analysis/chartModel';
-import { parseViewState } from '../analysis/viewState';
-import { loadContract } from '../contract/loader';
+import {
+	DEFAULT_VIEW_STATE,
+	parseViewState,
+	type ViewState,
+} from '../analysis/viewState';
+import { loadContract, type LoadResult } from '../contract/loader';
 import { toDetail } from '../contract/mapper';
 import type { IndicatorSeriesV1, ManifestV1 } from '../contract/types';
 import {
@@ -56,7 +65,10 @@ function toChartSources(
 
 export class McdDetailView extends ItemView {
 	private readonly plugin: McdPlugin;
-	private key: string | null = null;
+	/** The full persisted view state; `key === ''` means no indicator selected. */
+	private view: ViewState = { ...DEFAULT_VIEW_STATE, key: '' };
+	/** The last loaded contract, cached so a toolbar change need not re-read disk. */
+	private contract: LoadResult | null = null;
 	/** The live chart's teardown handle, disposed before each re-render/close. */
 	private chartHandle: ChartHandle | null = null;
 
@@ -70,21 +82,22 @@ export class McdDetailView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return this.key ? `指标：${this.key}` : DETAIL_VIEW_TITLE;
+		return this.view.key ? `指标：${this.view.key}` : DETAIL_VIEW_TITLE;
 	}
 
 	getIcon(): string {
 		return VIEW_ICON;
 	}
 
-	/** Persist the selected indicator so a restored tab reopens it (§8). */
+	/** Persist the full view state so a restored tab reopens identically (§6/§8). */
 	getState(): Record<string, unknown> {
-		return this.key ? { key: this.key } : {};
+		return { ...this.view };
 	}
 
 	async setState(state: unknown, result: ViewStateResult): Promise<void> {
-		const next = (state ?? {}) as { key?: unknown };
-		this.key = typeof next.key === 'string' ? next.key : null;
+		// parseViewState is total: a partial (M2 stored only `{key}`) or a
+		// hand-edited blob degrades field-by-field to the defaults, never throws.
+		this.view = parseViewState(state);
 		await this.refresh();
 		await super.setState(state, result);
 	}
@@ -98,22 +111,38 @@ export class McdDetailView extends ItemView {
 		this.contentEl.textContent = '';
 	}
 
-	/** Navigate to an indicator from the overview (card → detail). */
+	/** Navigate to an indicator from the overview (card → detail), resetting the view. */
 	setKey(key: string): void {
-		this.key = key;
+		this.view = { ...DEFAULT_VIEW_STATE, key };
 		void this.refresh();
 	}
 
+	/** A toolbar interaction: fold the patch in and re-render from the cache. */
+	private readonly onViewChange = (patch: Partial<ViewState>): void => {
+		this.view = { ...this.view, ...patch };
+		this.render();
+	};
+
 	/**
-	 * (Re)load the contract and render the honest state for it. The data dir is
-	 * vault-relative; the vault adapter keeps every read inside the vault
-	 * (AGENTS.md: no access outside the vault).
+	 * (Re)load the contract, cache it and render. The data dir is vault-relative;
+	 * the vault adapter keeps every read inside the vault (AGENTS.md: no access
+	 * outside the vault).
 	 */
 	private async refresh(): Promise<void> {
-		const result = await loadContract(
+		this.contract = await loadContract(
 			this.app.vault.adapter,
 			this.plugin.settings.dataDir,
 		);
+		this.render();
+	}
+
+	/** Render the honest state for the cached contract (idempotent, leak-safe). */
+	private render(): void {
+		const result = this.contract;
+		if (!result) return;
+		// Dispose any live chart before the DOM is replaced, so a re-render or a
+		// state switch never leaks an ECharts instance.
+		this.clearChart();
 
 		if (!result.ok) {
 			renderOnboarding(this.contentEl, {
@@ -128,7 +157,7 @@ export class McdDetailView extends ItemView {
 			return;
 		}
 
-		if (!this.key) {
+		if (!this.view.key) {
 			renderEmptyDetail(this.contentEl, {
 				onOpenOverview: () => {
 					void this.plugin.activateOverview();
@@ -137,21 +166,22 @@ export class McdDetailView extends ItemView {
 			return;
 		}
 
-		const series = result.seriesByKey.get(this.key) ?? null;
-		const detail = toDetail(this.key, result.manifest, series, result.caps);
+		const series = result.seriesByKey.get(this.view.key) ?? null;
+		const detail = toDetail(this.view.key, result.manifest, series, result.caps);
 		// Fold the contract series + capabilities + the persisted view state into
 		// the renderer-agnostic model, then let the composer draw it with the
 		// injected ECharts renderer (which falls back to SVG on any failure).
 		const chart = buildChartModel(
 			detail,
-			parseViewState(this.getState()),
+			this.view,
 			toChartSources(result.seriesByKey, result.manifest),
 		);
-		this.clearChart();
 		this.chartHandle = renderDetail(this.contentEl, {
 			model: detail,
 			chart,
+			view: this.view,
 			renderChart,
+			onViewStateChange: this.onViewChange,
 			handlers: {
 				onBack: () => {
 					void this.plugin.activateOverview();
