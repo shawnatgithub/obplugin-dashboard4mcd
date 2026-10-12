@@ -141,7 +141,11 @@ export function renderOverview(root: HTMLElement, props: OverviewProps): void {
 	view.appendChild(buildHeader(props.meta, handlers));
 
 	const main = el('main', 'mcd-main');
-	main.appendChild(buildSampleBanner(props.meta.sampleNotice));
+	// Only show the honesty banner when there is something to disclose; real
+	// contract data carries an empty notice (spec D-M2-5, T5).
+	if (props.meta.sampleNotice) {
+		main.appendChild(buildSampleBanner(props.meta.sampleNotice));
+	}
 	if (props.groups.length === 0) {
 		main.appendChild(buildEmptyState());
 	} else {

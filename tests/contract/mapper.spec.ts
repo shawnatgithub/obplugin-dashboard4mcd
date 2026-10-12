@@ -6,6 +6,7 @@ import {
 	formatValue,
 	hashSeed,
 	regionLabel,
+	resolveOverview,
 	sparkFromSeries,
 	toDetail,
 	toOverview,
@@ -300,5 +301,25 @@ describe('toDetail', () => {
 			caps,
 		);
 		expect(d.statusBanner).toBe('已暂停采集');
+	});
+});
+
+describe('resolveOverview', () => {
+	it('LoadOk → 真实模型，无示例横幅', () => {
+		const { manifest, caps, seriesByKey } = loadGolden();
+		const model = resolveOverview({ ok: true, manifest, seriesByKey, caps });
+		expect(model.meta.sampleNotice).toBe('');
+		expect(model.groups).toHaveLength(2);
+	});
+
+	it('LoadErr → 回退内置示例，横幅携带失败原因', () => {
+		const model = resolveOverview({
+			ok: false,
+			reason: 'missing_manifest',
+			detail: '未找到清单文件：MacroData/processed/manifest.json',
+		});
+		expect(model.meta.sampleNotice).toContain('未找到清单文件');
+		expect(model.meta.sampleNotice).toContain('示例数据');
+		expect(model.groups.length).toBeGreaterThan(0);
 	});
 });

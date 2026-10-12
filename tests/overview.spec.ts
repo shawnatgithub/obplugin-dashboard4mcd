@@ -72,6 +72,11 @@ describe('renderOverview — structure', () => {
 			OVERVIEW_META.footnote,
 		);
 	});
+
+	it('omits the banner when the notice is empty (real contract data)', () => {
+		const root = render({ meta: { ...OVERVIEW_META, sampleNotice: '' } });
+		expect(root.querySelector('.mcd-banner')).toBeNull();
+	});
 });
 
 describe('renderOverview — metric card', () => {

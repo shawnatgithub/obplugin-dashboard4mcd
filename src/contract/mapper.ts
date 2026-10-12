@@ -13,9 +13,10 @@
  * well-formed view model, so the UI can explain itself instead of crashing.
  */
 
-import { OVERVIEW_META, type OverviewMeta } from '../data/overview';
+import { OVERVIEW_GROUPS, OVERVIEW_META, type OverviewMeta } from '../data/overview';
 import { SPARK_POINTS, sparkGaps } from '../sparkline';
 import type { Delta, MetricCard, MetricGroup } from '../types';
+import type { LoadResult } from './loader';
 import { isStub, reasonText } from './reasonText';
 import type {
 	CapabilitiesV1,
@@ -279,4 +280,23 @@ export function toDetail(
 	};
 	if (series?.source) model.source = series.source;
 	return model;
+}
+
+/**
+ * Resolve a load result to an overview model. Real contract data maps straight
+ * through with no banner; any load failure falls back to the bundled sample set
+ * (D-M2-5) behind an honest banner that carries the loader's detail, so the user
+ * always knows why real data is absent and that the numbers are placeholders.
+ */
+export function resolveOverview(result: LoadResult): OverviewModel {
+	if (result.ok) {
+		return toOverview(result.manifest, result.seriesByKey, result.caps);
+	}
+	return {
+		meta: {
+			...OVERVIEW_META,
+			sampleNotice: `${result.detail}。当前展示内置示例数据，非真实数据。`,
+		},
+		groups: OVERVIEW_GROUPS,
+	};
 }

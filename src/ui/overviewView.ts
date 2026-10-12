@@ -1,19 +1,19 @@
 /**
  * The Overview workspace view.
  *
- * Thin glue between Obsidian's `ItemView` and the Obsidian-free `renderOverview`
- * composer: it resolves the content element, feeds the bundled sample data, and
- * wires the header actions (refresh / settings) plus selection tracking.
+ * Thin glue between Obsidian's `ItemView` and the Obsidian-free composers: it
+ * loads the data contract from the configured vault folder through the vault
+ * adapter, resolves it to an overview model (real data, or the bundled sample
+ * fallback behind an honest banner), and wires the header actions (refresh /
+ * settings) plus single-card selection. All mapping and IO live in the pure
+ * `contract/` modules, so this file stays lifecycle-only.
  */
 
 import { ItemView, Notice } from 'obsidian';
 import type { WorkspaceLeaf } from 'obsidian';
-import {
-	VIEW_ICON,
-	VIEW_TITLE,
-	VIEW_TYPE_MCD_OVERVIEW,
-} from '../constants';
-import { OVERVIEW_GROUPS, OVERVIEW_META } from '../data/overview';
+import { loadContract } from '../contract/loader';
+import { resolveOverview } from '../contract/mapper';
+import { VIEW_ICON, VIEW_TITLE, VIEW_TYPE_MCD_OVERVIEW } from '../constants';
 import type McdPlugin from '../main';
 import { renderOverview } from './overview';
 
@@ -39,30 +39,46 @@ export class McdOverviewView extends ItemView {
 	}
 
 	async onOpen(): Promise<void> {
-		this.render();
+		await this.refresh(false);
 	}
 
 	async onClose(): Promise<void> {
 		this.contentEl.textContent = '';
 	}
 
-	private render(): void {
+	/**
+	 * (Re)load the contract from the configured data dir and re-render. The data
+	 * dir is vault-relative; the vault adapter keeps every read inside the vault
+	 * (AGENTS.md: no access outside the vault). `notify` surfaces the source.
+	 */
+	private async refresh(notify: boolean): Promise<void> {
+		const result = await loadContract(
+			this.app.vault.adapter,
+			this.plugin.settings.dataDir,
+		);
+		const model = resolveOverview(result);
 		renderOverview(this.contentEl, {
-			meta: OVERVIEW_META,
-			groups: OVERVIEW_GROUPS,
+			meta: model.meta,
+			groups: model.groups,
 			selected: this.selected,
 			handlers: {
 				onSelect: (selected) => {
 					this.selected = selected;
 				},
 				onRefresh: () => {
-					this.render();
-					new Notice('宏观数据看板：当前展示内置示例数据');
+					void this.refresh(true);
 				},
 				onOpenSettings: () => {
 					this.plugin.openSettings();
 				},
 			},
 		});
+		if (notify) {
+			new Notice(
+				result.ok
+					? `宏观数据看板：已载入真实数据（${result.seriesByKey.size} 项序列）`
+					: '宏观数据看板：未找到真实数据，当前展示内置示例',
+			);
+		}
 	}
 }
