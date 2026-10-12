@@ -684,12 +684,45 @@
 	height: 40px;
 }
 
+/* M2 详情页主图（零依赖 SVG，D-M2-4）：宽度撑满，高度随 viewBox 等比 */
+.mcd-chart--line {
+	height: auto;
+}
+
+.mcd-chart__svg {
+	display: block;
+	width: 100%;
+	height: auto;
+	overflow: visible;
+}
+
+.mcd-chart__ylabel,
+.mcd-chart__xlabel {
+	fill: var(--mcd-muted);
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+}
+
+.mcd-chart__caption {
+	margin-top: var(--mcd-sp-2);
+	font-size: var(--mcd-fs-small);
+	color: var(--mcd-muted);
+}
+
 /* 图表不可用时回落到原型线框态 */
 .mcd-wireframe {
 	border: 1px dashed var(--mcd-stroke);
 	border-radius: var(--mcd-radius-card);
 	padding: var(--mcd-sp-3);
 	color: var(--mcd-muted);
+}
+
+/* 主图空态：居中占位，绝不填 0 */
+.mcd-chart__empty {
+	display: grid;
+	place-items: center;
+	min-height: 160px;
+	font-size: var(--mcd-fs-body);
 }
 
 /* ---------- 12. 空状态 / 首次运行 ---------- */
