@@ -34,9 +34,10 @@ export function shape(seed: number): number[] {
 	return out;
 }
 
-/** X coordinate (viewBox units) for period index `i`. */
-export function sparkX(i: number): number {
-	return (i / (SPARK_POINTS - 1)) * SPARK_WIDTH;
+/** X coordinate (viewBox units) for period index `i` out of `n` points. */
+export function sparkX(i: number, n: number = SPARK_POINTS): number {
+	const denom = n > 1 ? n - 1 : 1;
+	return (i / denom) * SPARK_WIDTH;
 }
 
 /** Y coordinate (viewBox units) for normalized value `f` in [0, 1]. */
@@ -48,13 +49,16 @@ export function sparkY(f: number): number {
  * Build the SVG path `d` for a series, breaking the pen at every missing
  * period so gaps are never interpolated across (UI-UX §6 断线).
  *
- * Coordinates are rounded to one decimal, matching the prototype output.
+ * The x-scale adapts to `pts.length`, so a real series shorter than 24 points
+ * still spans the full width; a 24-point input is unchanged. Coordinates are
+ * rounded to one decimal, matching the prototype output.
  */
 export function buildSparkPath(
 	pts: readonly number[],
 	gaps: readonly number[] = [],
 ): string {
 	const gapSet = new Set(gaps);
+	const n = pts.length;
 	let d = '';
 	let pen = false;
 	pts.forEach((f, i) => {
@@ -62,8 +66,39 @@ export function buildSparkPath(
 			pen = false;
 			return;
 		}
-		d += `${pen ? 'L' : 'M'}${sparkX(i).toFixed(1)},${sparkY(f).toFixed(1)}`;
+		d += `${pen ? 'L' : 'M'}${sparkX(i, n).toFixed(1)},${sparkY(f).toFixed(1)}`;
 		pen = true;
 	});
 	return d;
+}
+
+/**
+ * Normalize real values into the [0.08, 0.92] drawing band so a live series
+ * uses the same vertical range as the placeholder `shape()`. Min/max are taken
+ * over the non-null values; a `null` (missing period) maps to a mid
+ * placeholder that `buildSparkPath` skips via the gap set. A flat series (or
+ * one with no values) collapses to the band midpoint. One entry per input.
+ */
+export function normalizeSpark(values: readonly (number | null)[]): number[] {
+	const nums = values.filter((v): v is number => v !== null);
+	const lo = 0.08;
+	const hi = 0.92;
+	if (nums.length === 0) return values.map(() => (lo + hi) / 2);
+	const min = Math.min(...nums);
+	const max = Math.max(...nums);
+	const span = max - min;
+	return values.map((v) => {
+		if (v === null) return (lo + hi) / 2;
+		if (span === 0) return (lo + hi) / 2;
+		return lo + ((v - min) / span) * (hi - lo);
+	});
+}
+
+/** Indices of `null` (missing) entries — where the sparkline breaks and marks. */
+export function sparkGaps(values: readonly (number | null)[]): number[] {
+	const out: number[] = [];
+	values.forEach((v, i) => {
+		if (v === null) out.push(i);
+	});
+	return out;
 }

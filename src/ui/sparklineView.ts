@@ -9,9 +9,9 @@
 
 import {
 	SPARK_HEIGHT,
-	SPARK_POINTS,
 	SPARK_WIDTH,
 	buildSparkPath,
+	normalizeSpark,
 	shape,
 	sparkX,
 	sparkY,
@@ -21,8 +21,10 @@ import { svgEl } from './dom';
 
 export function buildSparkline(card: MetricCard): SVGSVGElement {
 	const muted = card.fresh === 'stale';
+	// Real values win over the deterministic placeholder shape (spec D-M2-5).
+	const pts = card.spark ? normalizeSpark(card.spark) : shape(card.seed);
+	const n = pts.length;
 	const gaps = card.gaps ?? [];
-	const pts = shape(card.seed);
 
 	const svg = svgEl('svg', {
 		class: 'mcd-spark',
@@ -42,7 +44,7 @@ export function buildSparkline(card: MetricCard): SVGSVGElement {
 	);
 
 	for (const gap of gaps) {
-		const gx = sparkX(gap);
+		const gx = sparkX(gap, n);
 		svg.appendChild(
 			svgEl('line', {
 				x1: gx,
@@ -67,8 +69,8 @@ export function buildSparkline(card: MetricCard): SVGSVGElement {
 	if (muted) pathAttrs['stroke-dasharray'] = '3 3';
 	svg.appendChild(svgEl('path', pathAttrs));
 
-	const last = pts[SPARK_POINTS - 1];
-	if (!muted && last !== undefined) {
+	const last = pts[n - 1];
+	if (!muted && last !== undefined && !gaps.includes(n - 1)) {
 		svg.appendChild(
 			svgEl('circle', {
 				cx: SPARK_WIDTH,

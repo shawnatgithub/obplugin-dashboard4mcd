@@ -9,11 +9,12 @@
 
 import type { Delta, Fresh, MetricCard } from './types';
 
-/** Freshness tri-state → label (UI-UX §9 #2, resolved to the prototype set). */
+/** Freshness four-state → label (UI-UX §9 #2 + spec D-M2-3). */
 export const FRESHNESS_LABEL: Record<Fresh, string> = {
 	fresh: '最新',
 	aging: '临近截止',
 	stale: '已过期',
+	unknown: '待采集',
 };
 
 /** Human label for a freshness state. */

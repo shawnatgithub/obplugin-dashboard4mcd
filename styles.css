@@ -351,6 +351,11 @@
 	background: var(--mcd-stale);
 }
 
+/* Freshness undetermined (missing release config / first fetch) — neutral wire. */
+.mcd-dot.is-unknown {
+	background: var(--mcd-wire);
+}
+
 .mcd-dot.is-red {
 	background: var(--mcd-red);
 }
