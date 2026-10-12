@@ -11,7 +11,8 @@
  * 再走一遍 M3 交互路径：切图型（表格↔折线）主图随画法变而 tbody 行数不变、切
  * 变换到同比图重画表不动、叠加下拉在无候选时诚实禁用、view_state 全字段
  * setState→getState 往返（M3 退出审计 spec §9 / G7）。overlay 双图渲染真实数据无
- * 候选，由单测覆盖，冒烟不虚构第二序列（D-M3-5/D-M3-6/D-M3-8）。
+ * 候选，由单测覆盖，冒烟不虚构第二序列（D-M3-5/D-M3-6/D-M3-8）。M4 再开发布日历
+ * 视图：命令打开→时间线 13 月刻度→状态列表真实指标行→「预计」文案（S5 契约安全版）。
  *
  * 前置条件：Obsidian 已打开本 vault，且 vault 内 `MacroData/processed/` 有 M1 真实
  * 产物（可用 MCD_DATA_DIR / MCD_DETAIL_KEY 覆盖）。若 CLI 不可达，脚本以退出码 2
@@ -229,6 +230,50 @@ record('view_state 全字段 setState→getState 往返', rtOk, `state=${rtRaw.v
 const errs2 = run(['dev:errors']);
 const clean2 = /no errors/i.test(errs2.out);
 record('真实数据渲染后控制台无错误', clean2, clean2 ? '' : errs2.out.slice(0, 600));
+
+// ---- 发布日历视图（M4-T5 / S5：命令打开 → 时间线 → 状态列表 → 预计文案）----
+// dataDir 已在步骤 6 指向 vault 内真实 ETL 产物，故此段走的是真实数据路径。
+
+// R0. 发布日历命令已注册（稳定 id，发布后不得改名）
+const RELEASE_COMMAND_ID = `${PLUGIN_ID}:open-release-calendar`;
+const RELEASE_VIEW_TYPE = 'mcd-release-view';
+const relCmd = evalJs(`app.commands.commands['${RELEASE_COMMAND_ID}']!==undefined`);
+record(`发布日历命令已注册 (${RELEASE_COMMAND_ID})`, relCmd.value === 'true', relCmd.value || relCmd.err);
+
+// R1. 执行命令，发布日历视图应挂载出一个 leaf
+evalJs(`app.commands.executeCommandById('${RELEASE_COMMAND_ID}')`);
+await sleep(700);
+const relLeaf = evalJs(`app.workspace.getLeavesOfType('${RELEASE_VIEW_TYPE}').length`);
+record('发布日历视图可打开并挂载', Number(relLeaf.value) >= 1, `leaves=${relLeaf.value}`);
+
+// R2. 视图渲染出 .mcd-release（契约可读时的真实日历，而非空态/伪造）
+const relRoot = evalJs(
+	`(function(){var l=app.workspace.getLeavesOfType('${RELEASE_VIEW_TYPE}')[0];return l?(l.view.contentEl.querySelector('.mcd-release')!==null):false;})()`,
+);
+record('发布日历渲染出 .mcd-release', relRoot.value === 'true', `present=${relRoot.value}`);
+
+// R3. 时间线刻度数 === 月轴长度（13：anchor 前 11 月 + anchor + 后 1 月）
+const relTicks = evalJs(
+	`(function(){var l=app.workspace.getLeavesOfType('${RELEASE_VIEW_TYPE}')[0];return l?l.view.contentEl.querySelectorAll('.mcd-release__tick').length:-1;})()`,
+);
+record('发布日历时间线含 13 个月刻度', Number(relTicks.value) === 13, `ticks=${relTicks.value}`);
+
+// R4. 状态列表行数 === 真实指标数（>=1；与总览真实卡片同源，不虚构行）
+const relRows = evalJs(
+	`(function(){var l=app.workspace.getLeavesOfType('${RELEASE_VIEW_TYPE}')[0];return l?l.view.contentEl.querySelectorAll('.mcd-release__row').length:-1;})()`,
+);
+record('发布日历状态列表渲染真实指标行', Number(relRows.value) >= 1, `rows=${relRows.value}`);
+
+// R5. 「预计」文案出现（下次发布为按频率推导值且显式标注，spec §2 数据诚实）
+const relNext = evalJs(
+	`(function(){var l=app.workspace.getLeavesOfType('${RELEASE_VIEW_TYPE}')[0];return l?l.view.contentEl.textContent.includes('预计'):false;})()`,
+);
+record('发布日历标注「预计」下次发布', relNext.value === 'true', `has预计=${relNext.value}`);
+
+// R6. 发布日历渲染后控制台仍无错误
+const errs3 = run(['dev:errors']);
+const clean3 = /no errors/i.test(errs3.out);
+record('发布日历渲染后控制台无错误', clean3, clean3 ? '' : errs3.out.slice(0, 600));
 
 // 9. 尽力而为的截图（手册：截图落 artifacts/），失败不判负
 if (WANT_SCREENSHOT) {
