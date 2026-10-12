@@ -31,5 +31,8 @@
 		"ts-jest": "^29.4.14",
 		"typescript": "^5.8.3",
 		"typescript-eslint": "^8.59.1"
+	},
+	"dependencies": {
+		"echarts": "^6.1.0"
 	}
 }
