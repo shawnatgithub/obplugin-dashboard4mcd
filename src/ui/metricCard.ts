@@ -23,6 +23,8 @@ import { buildSparkline } from './sparklineView';
 export interface MetricCardHandlers {
 	/** Called with the card name when the card is activated. */
 	onSelect?: (name: string) => void;
+	/** Called with the contract key to open the detail view (real cards only). */
+	onOpen?: (key: string) => void;
 }
 
 export function buildMetricCard(
@@ -35,6 +37,7 @@ export function buildMetricCard(
 	const root = el('button', 'mcd-card');
 	root.type = 'button';
 	root.dataset.metric = card.name;
+	if (card.key) root.dataset.key = card.key;
 	root.setAttribute(
 		'aria-label',
 		`${card.name} ${card.value}${card.unit ? ' ' + card.unit : ''}`.trim(),
@@ -96,7 +99,12 @@ export function buildMetricCard(
 	}
 	root.appendChild(foot);
 
-	root.addEventListener('click', () => handlers.onSelect?.(card.name));
+	root.addEventListener('click', () => {
+		handlers.onSelect?.(card.name);
+		// Only real (contract-backed) cards carry a key to navigate by; sample
+		// cards have none and simply keep the selection highlight.
+		if (card.key) handlers.onOpen?.(card.key);
+	});
 
 	return root;
 }

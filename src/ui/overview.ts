@@ -23,6 +23,8 @@ export interface OverviewHandlers {
 	onOpenSettings?: () => void;
 	/** Selection changed; receives the resolved selection (null = none). */
 	onSelect?: (selected: string | null) => void;
+	/** A real card was activated; receives its contract key to open detail. */
+	onOpen?: (key: string) => void;
 }
 
 export interface OverviewProps {

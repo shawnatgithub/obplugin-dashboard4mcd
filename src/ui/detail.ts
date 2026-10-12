@@ -8,9 +8,10 @@
  * status banner, the SVG main chart (`renderLineChart`), the data table (a
  * missing value is a neutral Badge「缺失」, never 0 — §6), and a source footnote.
  *
- * Pure DOM (no Obsidian), so it is testable under jsdom. The toolbar with
- * capabilities graying lands in T7; this composer renders the M2 structure and
- * never throws on a stub panel or a missing series (T6: 置灰零抛错).
+ * Pure DOM (no Obsidian), so it is testable under jsdom. The toolbar
+ * (`./toolbar`) applies the capabilities graying engine; this composer renders
+ * the M2 structure and never throws on a stub panel or a missing series
+ * (T6: 置灰零抛错).
  */
 
 import {
@@ -24,6 +25,7 @@ import type { SeriesPoint, Unit } from '../contract/types';
 import { freshnessDotClass, freshnessLabel } from '../format';
 import { renderLineChart } from './chartView';
 import { clearEl, el, svgEl } from './dom';
+import { buildToolbar } from './toolbar';
 
 export interface DetailHandlers {
 	/** Return to the overview dashboard. */
@@ -183,6 +185,11 @@ export function renderDetail(root: HTMLElement, props: DetailProps): void {
 	if (model.statusBanner) {
 		main.appendChild(buildStatusBanner(model.statusBanner));
 	}
+
+	// The toolbar reads the capabilities panel and grays every unsupported
+	// option with its reason_code copy (T3-5); it never throws on a stub or an
+	// absent panel, so S3 needs no branch here.
+	main.appendChild(buildToolbar({ panel: model.panel }));
 
 	// renderLineChart owns the chart classes and falls back to a wireframe when
 	// the series has no plottable value, so S3 (limited) needs no branch here.

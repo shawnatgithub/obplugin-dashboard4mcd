@@ -500,6 +500,18 @@
 	background: var(--mcd-card);
 }
 
+/* 工具栏内一个带标签的分段组 */
+.mcd-toolbar__group {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--mcd-sp-2);
+}
+
+.mcd-toolbar__label {
+	font-size: var(--mcd-fs-small);
+	color: var(--mcd-muted);
+}
+
 .mcd-select {
 	height: var(--mcd-h-control);
 	padding: 0 var(--mcd-sp-2);

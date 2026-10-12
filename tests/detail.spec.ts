@@ -131,6 +131,16 @@ describe('renderDetail — structure', () => {
 			'来源：akshare_eastmoney',
 		);
 	});
+
+	it('renders the capabilities toolbar above the chart', () => {
+		const toolbar = root.querySelector('.mcd-toolbar');
+		expect(toolbar).not.toBeNull();
+		expect(
+			Array.from(toolbar?.querySelectorAll('.mcd-toolbar__label') ?? []).map(
+				(l) => l.textContent,
+			),
+		).toEqual(['模式', '图型', '变换', '叠加']);
+	});
 });
 
 describe('renderDetail — header actions', () => {
@@ -232,6 +242,15 @@ describe('renderDetail — limited state (S3)', () => {
 		expect(root.querySelector('.mcd-banner')?.textContent).toContain(
 			reasonText('SOURCE_UNSUPPORTED'),
 		);
+		// S3 grays the whole toolbar with the stub reason and never throws.
+		const options = Array.from(
+			root.querySelectorAll<HTMLButtonElement>('.mcd-segmented__item'),
+		);
+		expect(options.length).toBeGreaterThan(0);
+		expect(options.every((o) => o.disabled)).toBe(true);
+		expect(
+			options.every((o) => o.title === reasonText('SOURCE_UNSUPPORTED')),
+		).toBe(true);
 	});
 
 	it('reflects the freshness state on the dot (stale / unknown)', () => {

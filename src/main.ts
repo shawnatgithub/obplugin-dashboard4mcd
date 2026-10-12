@@ -5,10 +5,12 @@ import {
 	PLUGIN_ID,
 	RIBBON_TOOLTIP,
 	VIEW_ICON,
+	VIEW_TYPE_MCD_DETAIL,
 	VIEW_TYPE_MCD_OVERVIEW,
 } from './constants';
 import { mergeSettings } from './logic';
 import { DEFAULT_SETTINGS, McdSettings, McdSettingTab } from './settings';
+import { McdDetailView } from './ui/detailView';
 import { McdOverviewView } from './ui/overviewView';
 
 /** Minimal shape of Obsidian's settings API used to jump straight to our tab. */
@@ -27,15 +29,20 @@ export default class McdPlugin extends Plugin {
 			(leaf: WorkspaceLeaf) => new McdOverviewView(leaf, this),
 		);
 
+		this.registerView(
+			VIEW_TYPE_MCD_DETAIL,
+			(leaf: WorkspaceLeaf) => new McdDetailView(leaf, this),
+		);
+
 		this.addRibbonIcon(VIEW_ICON, RIBBON_TOOLTIP, () => {
-			void this.activateOverview();
+			void this.activateDefaultView();
 		});
 
 		this.addCommand({
 			id: COMMAND_OPEN_OVERVIEW,
 			name: RIBBON_TOOLTIP,
 			callback: () => {
-				void this.activateOverview();
+				void this.activateDefaultView();
 			},
 		});
 
@@ -56,6 +63,45 @@ export default class McdPlugin extends Plugin {
 			});
 		}
 		await workspace.revealLeaf(leaf);
+	}
+
+	/**
+	 * Reveal the detail page for `key`, reusing an open detail leaf so card
+	 * navigation does not pile up tabs. The key travels through `view_state`, so
+	 * the view's `setState` picks it up and re-renders (spec §8).
+	 */
+	async openDetail(key: string): Promise<void> {
+		const { workspace } = this.app;
+		const existing = workspace.getLeavesOfType(VIEW_TYPE_MCD_DETAIL)[0];
+		const leaf = existing ?? workspace.getLeaf(true);
+		await leaf.setViewState({
+			type: VIEW_TYPE_MCD_DETAIL,
+			active: true,
+			state: { key },
+		});
+		await workspace.revealLeaf(leaf);
+	}
+
+	/** Activate whichever view the reader chose as their default (T3-1). */
+	async activateDefaultView(): Promise<void> {
+		if (this.settings.defaultView !== 'detail') {
+			await this.activateOverview();
+			return;
+		}
+		const { workspace } = this.app;
+		const existing = workspace.getLeavesOfType(VIEW_TYPE_MCD_DETAIL)[0];
+		const leaf = existing ?? workspace.getLeaf(true);
+		if (!existing) {
+			await leaf.setViewState({ type: VIEW_TYPE_MCD_DETAIL, active: true });
+		}
+		await workspace.revealLeaf(leaf);
+	}
+
+	/** Record that the first-run guide has been engaged (gates onboarding). */
+	async markOnboardingSeen(): Promise<void> {
+		if (this.settings.onboardingSeen) return;
+		this.settings.onboardingSeen = true;
+		await this.saveSettings();
 	}
 
 	/** Open Obsidian settings directly to this plugin's tab. */

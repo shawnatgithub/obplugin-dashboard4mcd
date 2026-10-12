@@ -1,4 +1,5 @@
 import { OVERVIEW_GROUPS, OVERVIEW_META } from '../src/data/overview';
+import type { MetricGroup } from '../src/types';
 import { renderOverview } from '../src/ui/overview';
 import type { OverviewProps } from '../src/ui/overview';
 
@@ -212,5 +213,43 @@ describe('renderOverview — empty state', () => {
 			'暂无数据',
 		);
 		expect(cards(root)).toHaveLength(0);
+	});
+});
+
+describe('renderOverview — card → detail navigation', () => {
+	const keyed: MetricGroup[] = [
+		{
+			title: '全国趋势',
+			cards: [
+				{
+					name: '社会消费品零售总额',
+					key: 'retail_sales_total',
+					value: '44100',
+					unit: '亿元',
+					period: '2026-09',
+					fresh: 'fresh',
+					seed: 1,
+				},
+			],
+		},
+	];
+
+	it('exposes the contract key on the card element', () => {
+		const root = render({ groups: keyed });
+		expect(cards(root)[0]?.dataset.key).toBe('retail_sales_total');
+	});
+
+	it('fires onOpen with the key for a keyed card', () => {
+		const onOpen = jest.fn();
+		const root = render({ groups: keyed, handlers: { onOpen } });
+		cards(root)[0]?.click();
+		expect(onOpen).toHaveBeenCalledWith('retail_sales_total');
+	});
+
+	it('does not fire onOpen for a keyless sample card', () => {
+		const onOpen = jest.fn();
+		const root = render({ handlers: { onOpen } });
+		cardByName(root, 'CPI（同比）').click();
+		expect(onOpen).not.toHaveBeenCalled();
 	});
 });
