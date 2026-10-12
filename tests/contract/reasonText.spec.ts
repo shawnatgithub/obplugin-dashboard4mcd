@@ -27,7 +27,7 @@ const GOLDEN = path.resolve(
 );
 
 function caps(): CapabilitiesV1 {
-	const raw = JSON.parse(
+	const raw: unknown = JSON.parse(
 		readFileSync(path.join(GOLDEN, 'capabilities.json'), 'utf8'),
 	);
 	const r = parseCapabilities(raw);
