@@ -895,3 +895,138 @@
 .mcd-input.is-invalid {
 	border-color: var(--mcd-red);
 }
+
+/* ---------- 14. 发布日历与采集状态（S5，M4） ----------
+   仅复用上方令牌，不新增 --mcd-*（tokens.spec.ts 恒绿）。
+   数据诚实（spec §2）：预计环为虚线（非承诺），过期行浅红底但非运行时失败。 */
+
+.mcd-release__legend {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--mcd-sp-4);
+	font-size: var(--mcd-fs-small);
+	color: var(--mcd-muted);
+}
+
+.mcd-release__legend-item {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--mcd-sp-1);
+}
+
+/* 月度时间线：每月一格，marker 落在所属月；窄pane可横向滚动 */
+.mcd-release__timeline {
+	display: grid;
+	grid-auto-flow: column;
+	grid-auto-columns: minmax(44px, 1fr);
+	gap: var(--mcd-sp-1);
+	align-items: end;
+	padding: var(--mcd-sp-3);
+	border: 1px solid var(--mcd-stroke);
+	border-radius: var(--mcd-radius-card);
+	background: var(--mcd-card);
+	overflow-x: auto;
+}
+
+.mcd-release__tick {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: flex-end;
+	gap: var(--mcd-sp-2);
+	height: 64px;
+}
+
+/* 当前月竖线（锚点） */
+.mcd-release__tick.is-anchor::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 50%;
+	width: 1px;
+	background: var(--mcd-wire);
+}
+
+.mcd-release__dots {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: var(--mcd-sp-1);
+	min-height: 14px;
+}
+
+.mcd-release__label {
+	font-size: var(--mcd-fs-micro);
+	color: var(--mcd-muted);
+}
+
+.mcd-release__tick.is-anchor .mcd-release__label {
+	color: var(--mcd-text);
+	font-weight: 600;
+}
+
+.mcd-release__marker {
+	box-sizing: border-box;
+	width: 10px;
+	height: 10px;
+	border-radius: 999px;
+	background: var(--mcd-muted);
+}
+
+.mcd-release__marker.is-fresh {
+	background: var(--mcd-accent);
+}
+
+.mcd-release__marker.is-aging {
+	background: var(--mcd-amber);
+}
+
+.mcd-release__marker.is-stale {
+	background: var(--mcd-stale);
+}
+
+.mcd-release__marker.is-unknown {
+	background: var(--mcd-wire);
+}
+
+/* 预计下次：空心虚线环（估算，非调度承诺） */
+.mcd-release__marker--next {
+	background: transparent;
+	border: 2px dashed var(--mcd-wire);
+}
+
+/* 采集状态列表：过期行浅红底 + 左红边（需关注，但不冒充运行时失败） */
+.mcd-release__list .is-overdue > td {
+	background: color-mix(in srgb, var(--mcd-red) 10%, transparent);
+}
+
+.mcd-release__list .is-overdue > td:first-child {
+	border-left: 3px solid var(--mcd-red);
+}
+
+.mcd-release__metric {
+	color: var(--mcd-text);
+}
+
+.mcd-release__status {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--mcd-sp-1);
+}
+
+.mcd-release__open {
+	height: auto;
+	padding: 2px var(--mcd-sp-2);
+	font-size: var(--mcd-fs-small);
+}
+
+.mcd-release__note {
+	padding-top: var(--mcd-sp-3);
+	border-top: 1px solid var(--mcd-stroke);
+}
