@@ -123,3 +123,10 @@ export interface CapabilitiesV1 {
 	generated_at?: string;
 	panels: Record<string, FullPanel | StubPanel>;
 }
+
+/**
+ * A capabilities panel for one indicator: a full matrix, a source-unsupported
+ * stub, or null when capabilities are absent (degraded). Centralized here so
+ * both the UI toolbar and the pure analysis layer share one definition.
+ */
+export type Panel = FullPanel | StubPanel | null;

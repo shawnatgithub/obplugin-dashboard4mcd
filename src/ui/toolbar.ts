@@ -16,11 +16,11 @@
  */
 
 import { isStub, reasonText } from '../contract/reasonText';
-import type { FullPanel, ReasonCode, StubPanel } from '../contract/types';
+import type { FullPanel, Panel, ReasonCode } from '../contract/types';
 import { el } from './dom';
 
 /** A capabilities panel: full, source-unsupported stub, or absent (degraded). */
-export type Panel = FullPanel | StubPanel | null;
+export type { Panel };
 
 export interface ToolbarProps {
 	panel: Panel;

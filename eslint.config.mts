@@ -12,6 +12,8 @@ export default defineConfig(
 		// 不进插件产物，不该用 Obsidian 插件规则校验。
 		'scripts/**',
 		'jest.config.cjs',
+		// 代理暂存目录（commit message、可行性 spike 等开发期草稿），不进插件构建链。
+		'.mcd-stage/**',
 		'versions.json',
 		'main.js',
 		'package.json',
