@@ -1,0 +1,21 @@
+{
+  "schema_version": "indicator_series_v1",
+  "key": "retail_sales_total_annual",
+  "title": "全国社会消费品零售总额·年度总额",
+  "region": "CN",
+  "frequency": "annual",
+  "date_grain": "year",
+  "unit": "level_cny",
+  "null_policy": "null_not_zero",
+  "status": "active",
+  "source": "akshare_eastmoney",
+  "generated_at": "2026-10-11T08:00:00+08:00",
+  "series": [
+    { "date": "2021", "value": 440823.2, "revision": 1 },
+    { "date": "2022", "value": 439732.5, "revision": 1 },
+    { "date": "2023", "value": 471495.2, "revision": 1 },
+    { "date": "2024", "value": 487894.8, "revision": 1 },
+    { "date": "2025", "value": 501202.4, "revision": 1 }
+  ],
+  "quality": { "last_date": "2025", "errors": [] }
+}

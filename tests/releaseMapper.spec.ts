@@ -153,7 +153,13 @@ describe('toReleaseModel on the frozen golden manifest', () => {
 	});
 
 	it('builds one row per indicator with honest freshness-derived fields', () => {
-		expect(model.rows).toHaveLength(gm.indicators.length);
+		// The golden manifest carries 7 indicators, one of which is the annual
+		// sibling (CR-2026-10-13): annual never produces a calendar row.
+		expect(gm.indicators).toHaveLength(7);
+		expect(model.rows).toHaveLength(6);
+		expect(model.rows.some((r) => r.key === 'retail_sales_total_annual')).toBe(
+			false,
+		);
 		const byKey = new Map(model.rows.map((r) => [r.key, r]));
 
 		const retail = byKey.get('retail_sales_total')!;
@@ -190,7 +196,12 @@ describe('toReleaseModel on the frozen golden manifest', () => {
 	});
 
 	it('builds one timeline marker per indicator, null-anchored when undated', () => {
-		expect(model.markers).toHaveLength(gm.indicators.length);
+		// Annual is filtered out with the rows: a `YYYY` last_date has no month
+		// anchor, and an annual series has no monthly collection schedule.
+		expect(model.markers).toHaveLength(6);
+		expect(
+			model.markers.some((mk) => mk.key === 'retail_sales_total_annual'),
+		).toBe(false);
 		const byKey = new Map(model.markers.map((mk) => [mk.key, mk]));
 
 		const retail = byKey.get('retail_sales_total')!;
@@ -211,6 +222,24 @@ describe('toReleaseModel on the frozen golden manifest', () => {
 });
 
 describe('toReleaseModel synthetic branches', () => {
+	it('excludes an annual indicator from rows and markers entirely', () => {
+		const m = manifestOf(
+			[
+				ind({ key: 'base', last_date: '2026-08', freshness: 'fresh' }),
+				ind({
+					key: 'base_annual',
+					frequency: 'annual',
+					last_date: '2025',
+					freshness: 'fresh',
+				}),
+			],
+			'2026-10-11T08:00:00+08:00',
+		);
+		const model = toReleaseModel(m, new Map());
+		expect(model.rows.map((r) => r.key)).toEqual(['base']);
+		expect(model.markers.map((mk) => mk.key)).toEqual(['base']);
+	});
+
 	it('marks a manual-source series with the 手动 badge and source', () => {
 		const m = manifestOf(
 			[ind({ key: 'manual_thing', last_date: '2026-07', freshness: 'aging' })],

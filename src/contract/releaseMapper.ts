@@ -234,12 +234,19 @@ function toMarker(
  * timeline expands from the anchor month (never the wall clock), so tests are
  * stable. Total: a missing series, an empty manifest, or an underivable anchor
  * all yield a well-formed model rather than a throw.
+ *
+ * An `annual` sibling (CR-2026-10-13) is excluded from rows and markers: it has
+ * no monthly collection schedule to track, and a `YYYY` last_date carries no
+ * month anchor for the monthly timeline. Its freshness lives on its monthly
+ * parent's row, so dropping it here loses nothing and fabricates no day.
  */
 export function toReleaseModel(
 	manifest: ManifestV1,
 	seriesByKey: Map<string, IndicatorSeriesV1>,
 ): ReleaseModel {
-	const indicators = manifest.indicators;
+	const indicators = manifest.indicators.filter(
+		(ind) => ind.frequency !== 'annual',
+	);
 	const anchorMonth = deriveAnchor(manifest);
 	const months = anchorMonth
 		? Array.from({ length: 13 }, (_, i) => shiftMonth(anchorMonth, i - 11))

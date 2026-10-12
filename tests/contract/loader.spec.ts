@@ -28,6 +28,7 @@ const GOLDEN_NAMES = [
 	'manifest.json',
 	'capabilities.json',
 	'retail_sales_total.json',
+	'retail_sales_total_annual.json',
 	'retail_sales_total_yoy.json',
 	'money_supply_m1_yoy.json',
 	'cpi_national_yoy.json',
@@ -77,8 +78,12 @@ describe('loadContract', () => {
 		const res = await loadContract(fakeAdapter(goldenFiles()), DATA_DIR);
 		expect(res.ok).toBe(true);
 		if (!res.ok) return;
-		expect(res.manifest.indicators).toHaveLength(6);
-		expect(res.seriesByKey.size).toBe(6);
+		// The loader is an honest pass-through: it loads all 7 indicators incl.
+		// the annual sibling (CR-2026-10-13). Filtering annual is a view concern
+		// (mapper/releaseMapper), never the loader's — the detail view needs the
+		// annual series present to render the year grain.
+		expect(res.manifest.indicators).toHaveLength(7);
+		expect(res.seriesByKey.size).toBe(7);
 		expect(res.caps).not.toBeNull();
 		expect(res.caps?.schema_version).toBe('capabilities_v1');
 	});
@@ -95,8 +100,8 @@ describe('loadContract', () => {
 		const res = await loadContract(fakeAdapter(files), DATA_DIR);
 		expect(res.ok).toBe(true);
 		if (!res.ok) return;
-		expect(res.manifest.indicators).toHaveLength(6);
-		expect(res.seriesByKey.size).toBe(4);
+		expect(res.manifest.indicators).toHaveLength(7);
+		expect(res.seriesByKey.size).toBe(5);
 		expect(res.seriesByKey.has('cpi_national_yoy')).toBe(false);
 	});
 
@@ -107,7 +112,7 @@ describe('loadContract', () => {
 		expect(res.ok).toBe(true);
 		if (!res.ok) return;
 		expect(res.caps).toBeNull();
-		expect(res.seriesByKey.size).toBe(6);
+		expect(res.seriesByKey.size).toBe(7);
 	});
 
 	it('reports no_data_dir for an empty or blank directory setting', async () => {

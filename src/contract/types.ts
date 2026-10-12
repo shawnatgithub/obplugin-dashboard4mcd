@@ -14,8 +14,8 @@
 /** Geographic scope. CN = national; SH/SC/CD = local (Shanghai/Sichuan/Chengdu). */
 export type Region = 'CN' | 'SH' | 'SC' | 'CD';
 
-/** Release cadence of a series. */
-export type Frequency = 'monthly' | 'quarterly' | 'daily';
+/** Release cadence of a series. `annual` is the CR-2026-10-13 year-total grain. */
+export type Frequency = 'monthly' | 'quarterly' | 'daily' | 'annual';
 
 /** Measurement unit. G18: a base key stores its level; `<key>_yoy` stores a ratio. */
 export type Unit = 'yoy_pct' | 'mom_pct' | 'index_2020_100' | 'level_cny' | 'unknown';

@@ -110,6 +110,7 @@ describe('mapper helpers', () => {
 		expect(frequencyLabel('monthly')).toBe('月度');
 		expect(frequencyLabel('quarterly')).toBe('季度');
 		expect(frequencyLabel('daily')).toBe('日度');
+		expect(frequencyLabel('annual')).toBe('年度');
 	});
 
 	it('formatTimestamp 保留日期与时分，无时间时仅日期', () => {
@@ -160,6 +161,16 @@ describe('toOverview', () => {
 		expect(sh.title).toBe('地方：上海');
 		expect(sh.cards).toHaveLength(1);
 		expect(sh.cards[0]!.key).toBe('retail_sales_sh_yoy');
+	});
+
+	it('annual 兄弟序列不产生总览卡（CR-2026-10-13）', () => {
+		// 冻结清单含 7 个指标，其中 retail_sales_total_annual 为 annual：
+		// 卡片仍为 5+1，annual 键不出现在任何分组。
+		expect(manifest.indicators).toHaveLength(7);
+		expect(manifest.indicators.some((i) => i.frequency === 'annual')).toBe(true);
+		expect(cardByKey(model, 'retail_sales_total_annual')).toBeUndefined();
+		const total = model.groups.flatMap((g) => g.cards).length;
+		expect(total).toBe(6);
 	});
 
 	it('真实数据 meta：无示例横幅，更新时间来自 manifest', () => {

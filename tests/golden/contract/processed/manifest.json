@@ -16,6 +16,17 @@
       "freshness": "fresh"
     },
     {
+      "key": "retail_sales_total_annual",
+      "file": "retail_sales_total_annual.json",
+      "schema": "indicator_series_v1",
+      "region": "CN",
+      "frequency": "annual",
+      "unit": "level_cny",
+      "status": "active",
+      "last_date": "2025",
+      "freshness": "fresh"
+    },
+    {
       "key": "retail_sales_total_yoy",
       "file": "retail_sales_total_yoy.json",
       "schema": "indicator_series_v1",

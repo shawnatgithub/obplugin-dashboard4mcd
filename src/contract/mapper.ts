@@ -64,6 +64,7 @@ const FREQUENCY_LABEL: Record<Frequency, string> = {
 	monthly: '月度',
 	quarterly: '季度',
 	daily: '日度',
+	annual: '年度',
 };
 
 /** Human label for a collection frequency (`Record` so a new one fails build). */
@@ -232,6 +233,10 @@ function overviewMeta(manifest: ManifestV1): OverviewMeta {
  * are grouped by region in `REGION_ORDER` (D-M2-1: the frozen manifest has no
  * layer field, so region is the honest grouping). `caps` only enriches the
  * expired reason for a stub-source indicator; it never fabricates a card.
+ *
+ * An `annual` sibling (CR-2026-10-13) is a detail-only grain reached from its
+ * monthly parent's toolbar; it is NOT an independent metric, so it never earns
+ * its own overview card (that would duplicate the parent as a second tile).
  */
 export function toOverview(
 	manifest: ManifestV1,
@@ -240,6 +245,7 @@ export function toOverview(
 ): OverviewModel {
 	const byRegion = new Map<Region, ManifestIndicator[]>();
 	for (const ind of manifest.indicators) {
+		if (ind.frequency === 'annual') continue;
 		const arr = byRegion.get(ind.region);
 		if (arr) arr.push(ind);
 		else byRegion.set(ind.region, [ind]);

@@ -28,13 +28,19 @@ function readJson(name: string): unknown {
 }
 
 describe('parseManifest', () => {
-	it('解析 golden manifest：6 指标 + capabilities 指针', () => {
+	it('解析 golden manifest：7 指标（含 annual）+ capabilities 指针', () => {
 		const r = parseManifest(readJson('manifest.json'));
 		expect(r.ok).toBe(true);
 		if (!r.ok) return;
 		expect(r.value.schema_version).toBe('manifest_v1');
 		expect(r.value.capabilities_file).toBe('capabilities.json');
-		expect(r.value.indicators).toHaveLength(6);
+		expect(r.value.indicators).toHaveLength(7);
+		// CR-2026-10-13: the annual sibling parses with the extended enum.
+		const annual = r.value.indicators.find(
+			(i) => i.key === 'retail_sales_total_annual',
+		);
+		expect(annual?.frequency).toBe('annual');
+		expect(annual?.last_date).toBe('2025');
 	});
 
 	it('保留契约四态 freshness（含 unknown）', () => {
