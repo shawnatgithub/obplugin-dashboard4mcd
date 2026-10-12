@@ -6,10 +6,12 @@
  * 的 main.js，也不进 Obsidian 运行时。只有这一层把打包产物真正加载进一个打开的
  * vault，用来抓住加载期崩溃、错误的 import、视图构造函数抛错等单元测试看不见的
  * 问题。它封装 Obsidian CLI：reload → 插件实例存在 → 总览命令已注册 → 看板视图
- * 能挂载 → 控制台无错误。
+ * 能挂载 → 控制台无错误 → 配置真实数据目录后总览出现真实卡片、详情出现真实
+ * 主图与数据表（M2 退出标准 #1 的真实数据路径）。
  *
- * 前置条件：Obsidian 已打开本 vault。若 CLI 不可达，脚本以退出码 2 跳过，并打印
- * 手动降级两步（手册：CLI 能力不足处降级为人工）。
+ * 前置条件：Obsidian 已打开本 vault，且 vault 内 `MacroData/processed/` 有 M1 真实
+ * 产物（可用 MCD_DATA_DIR / MCD_DETAIL_KEY 覆盖）。若 CLI 不可达，脚本以退出码 2
+ * 跳过，并打印手动降级两步（手册：CLI 能力不足处降级为人工）。
  *
  * 用法：node scripts/smoke.mjs [--screenshot]
  *   环境变量 OBSIDIAN_CLI 覆盖 CLI 二进制名（默认 obsidian）。
@@ -24,6 +26,12 @@ const CLI = process.env.OBSIDIAN_CLI || 'obsidian';
 const PLUGIN_ID = 'mcd';
 const COMMAND_ID = `${PLUGIN_ID}:open-overview`;
 const VIEW_TYPE = 'mcd-overview-view';
+const DETAIL_VIEW_TYPE = 'mcd-detail-view';
+// Vault-relative data root the live ETL products live under (loader appends
+// processed/). Override for a different vault layout.
+const DATA_DIR = process.env.MCD_DATA_DIR || 'MacroData';
+// A real indicator key present in the live manifest, used to open the detail.
+const DETAIL_KEY = process.env.MCD_DETAIL_KEY || 'retail_sales_total';
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WANT_SCREENSHOT = process.argv.includes('--screenshot');
 
@@ -87,7 +95,64 @@ const errs = run(['dev:errors']);
 const clean = /no errors/i.test(errs.out);
 record('控制台无错误', clean, clean ? '' : errs.out.slice(0, 600));
 
-// 6. 尽力而为的截图（手册：截图落 artifacts/），失败不判负
+// ---- 真实数据路径（M2 退出标准 #1：配置 dataDir → 总览真实卡片 → 详情真实序列）----
+
+// 6. 把数据目录指向 vault 内真实 ETL 产物根，重开总览触发真实加载
+evalJs(
+	`(function(){var p=app.plugins.plugins['${PLUGIN_ID}'];p.settings.dataDir='${DATA_DIR}';p.saveSettings();return p.settings.dataDir;})()`,
+);
+evalJs(`app.workspace.detachLeavesOfType('${VIEW_TYPE}')`);
+evalJs(`app.commands.executeCommandById('${COMMAND_ID}')`);
+await sleep(800);
+
+// 6a. 总览渲染出带契约 key 的真实指标卡片（示例卡片没有 data-key）
+const realCards = evalJs(
+	`(function(){var l=app.workspace.getLeavesOfType('${VIEW_TYPE}')[0];return l?l.view.contentEl.querySelectorAll('.mcd-card[data-key]').length:-1;})()`,
+);
+record(
+	'总览渲染出真实指标卡片',
+	Number(realCards.value) >= 1,
+	`dataDir=${DATA_DIR} realCards=${realCards.value}`,
+);
+
+// 6b. 真实数据下不再展示示例横幅（数据诚实，D-M2-5）
+const sampleBanner = evalJs(
+	`(function(){var l=app.workspace.getLeavesOfType('${VIEW_TYPE}')[0];return l?(l.view.contentEl.querySelector('.mcd-banner')!==null):true;})()`,
+);
+record('真实数据下无示例横幅', sampleBanner.value === 'false', `banner=${sampleBanner.value}`);
+
+// 7. 打开一个真实指标的详情页，断言主图与数据表
+const opened = evalJs(
+	`(function(){var p=app.plugins.plugins['${PLUGIN_ID}'];p.openDetail('${DETAIL_KEY}');return true;})()`,
+);
+await sleep(800);
+record(`详情命令已调用 (${DETAIL_KEY})`, opened.value === 'true', opened.value || opened.err);
+
+const detailLeaf = evalJs(`app.workspace.getLeavesOfType('${DETAIL_VIEW_TYPE}').length`);
+record('详情视图可打开并挂载', Number(detailLeaf.value) >= 1, `leaves=${detailLeaf.value}`);
+
+const chart = evalJs(
+	`(function(){var l=app.workspace.getLeavesOfType('${DETAIL_VIEW_TYPE}')[0];return l?(l.view.contentEl.querySelector('.mcd-chart__svg')!==null):false;})()`,
+);
+record('详情页渲染主图（SVG 折线）', chart.value === 'true', chart.value || chart.err);
+
+const rows = evalJs(
+	`(function(){var l=app.workspace.getLeavesOfType('${DETAIL_VIEW_TYPE}')[0];return l?l.view.contentEl.querySelectorAll('tbody tr').length:-1;})()`,
+);
+record('详情页渲染数据表', Number(rows.value) >= 1, `rows=${rows.value}`);
+
+// 7a. 详情 view_state 存了 key（T3-6：重载 leaf 恢复到同一指标）
+const stateKey = evalJs(
+	`(function(){var l=app.workspace.getLeavesOfType('${DETAIL_VIEW_TYPE}')[0];return l?JSON.stringify(l.view.getState()||{}):'{}';})()`,
+);
+record('详情 view_state 存有 key', stateKey.value.includes(DETAIL_KEY), `state=${stateKey.value}`);
+
+// 8. 真实数据渲染后控制台仍无错误
+const errs2 = run(['dev:errors']);
+const clean2 = /no errors/i.test(errs2.out);
+record('真实数据渲染后控制台无错误', clean2, clean2 ? '' : errs2.out.slice(0, 600));
+
+// 9. 尽力而为的截图（手册：截图落 artifacts/），失败不判负
 if (WANT_SCREENSHOT) {
 	const dir = path.join(REPO_ROOT, 'artifacts');
 	mkdirSync(dir, { recursive: true });
