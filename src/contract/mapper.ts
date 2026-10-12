@@ -260,7 +260,9 @@ export function toDetail(
 	let statusBanner: string | null = null;
 	if (!series) statusBanner = '未找到该指标的序列数据（文件缺失或尚未生成）';
 	else if (panel && isStub(panel)) statusBanner = reasonText(panel.reason_code);
-	else if (ind && ind.status === 'planned') statusBanner = '计划中：尚未接入采集';
+	// `planned` is the whole first frozen batch (G19) and still carries real
+	// series, so it must not read as an alarm; only `paused` (collection stopped)
+	// is surfaced when data is present.
 	else if (ind && ind.status === 'paused') statusBanner = '已暂停采集';
 
 	const model: DetailModel = {

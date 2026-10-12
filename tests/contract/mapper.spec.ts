@@ -74,6 +74,20 @@ function cardByKey(model: OverviewModel, key: string): MetricCard | undefined {
 	return undefined;
 }
 
+/** Clone the manifest with one indicator's lifecycle status overridden. */
+function withStatus(
+	manifest: ManifestV1,
+	key: string,
+	status: 'active' | 'planned' | 'paused',
+): ManifestV1 {
+	return {
+		...manifest,
+		indicators: manifest.indicators.map((i) =>
+			i.key === key ? { ...i, status } : i,
+		),
+	};
+}
+
 describe('mapper helpers', () => {
 	it('formatValue: null 为破折号，速率保留一位，整数级别不带 .0', () => {
 		expect(formatValue(null, 'yoy_pct')).toBe('—');
@@ -263,5 +277,28 @@ describe('toDetail', () => {
 		const d = toDetail('shanghai_finance_quarterly', manifest, stubSeries, caps);
 		expect(d.panel && isStub(d.panel)).toBe(true);
 		expect(d.statusBanner).toBe(reasonText('SOURCE_UNSUPPORTED'));
+	});
+
+	it('planned 但已有序列时不告警（首批冻结即 planned，G19）', () => {
+		const planned = withStatus(manifest, 'retail_sales_total', 'planned');
+		const d = toDetail(
+			'retail_sales_total',
+			planned,
+			seriesByKey.get('retail_sales_total')!,
+			caps,
+		);
+		expect(d.statusBanner).toBeNull();
+		expect(d.points.length).toBeGreaterThan(0);
+	});
+
+	it('paused 状态在有序列时仍给出暂停采集横幅', () => {
+		const paused = withStatus(manifest, 'retail_sales_total', 'paused');
+		const d = toDetail(
+			'retail_sales_total',
+			paused,
+			seriesByKey.get('retail_sales_total')!,
+			caps,
+		);
+		expect(d.statusBanner).toBe('已暂停采集');
 	});
 });
