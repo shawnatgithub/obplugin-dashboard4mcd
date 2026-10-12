@@ -7,7 +7,11 @@
  * vault，用来抓住加载期崩溃、错误的 import、视图构造函数抛错等单元测试看不见的
  * 问题。它封装 Obsidian CLI：reload → 插件实例存在 → 总览命令已注册 → 看板视图
  * 能挂载 → 控制台无错误 → 配置真实数据目录后总览出现真实卡片、详情出现真实
- * 主图与数据表（M2 退出标准 #1 的真实数据路径）。
+ * 主图（ECharts canvas 或 SVG 兜底）与数据表（M2 退出标准 #1 的真实数据路径）；
+ * 再走一遍 M3 交互路径：切图型（表格↔折线）主图随画法变而 tbody 行数不变、切
+ * 变换到同比图重画表不动、叠加下拉在无候选时诚实禁用、view_state 全字段
+ * setState→getState 往返（M3 退出审计 spec §9 / G7）。overlay 双图渲染真实数据无
+ * 候选，由单测覆盖，冒烟不虚构第二序列（D-M3-5/D-M3-6/D-M3-8）。
  *
  * 前置条件：Obsidian 已打开本 vault，且 vault 内 `MacroData/processed/` 有 M1 真实
  * 产物（可用 MCD_DATA_DIR / MCD_DETAIL_KEY 覆盖）。若 CLI 不可达，脚本以退出码 2
@@ -131,21 +135,95 @@ record(`详情命令已调用 (${DETAIL_KEY})`, opened.value === 'true', opened.
 const detailLeaf = evalJs(`app.workspace.getLeavesOfType('${DETAIL_VIEW_TYPE}').length`);
 record('详情视图可打开并挂载', Number(detailLeaf.value) >= 1, `leaves=${detailLeaf.value}`);
 
-const chart = evalJs(
-	`(function(){var l=app.workspace.getLeavesOfType('${DETAIL_VIEW_TYPE}')[0];return l?(l.view.contentEl.querySelector('.mcd-chart__svg')!==null):false;})()`,
+// 主图存在（M3-T3 起）：主图由 tree-shaken ECharts 渲染为 <canvas>；仅当 ECharts
+// 不可用/抛错才回退到依赖无关的 SVG 折线。两者其一存在即算主图已画出，
+// 不再只认 .mcd-chart__svg（那会漏掉真实的 canvas 路径）。
+const hasChart = () => evalJs(
+	`(function(){var l=app.workspace.getLeavesOfType('${DETAIL_VIEW_TYPE}')[0];if(!l)return 'no-leaf';var c=l.view.contentEl;return (c.querySelector('.mcd-chart--echarts canvas')!==null)||(c.querySelector('.mcd-chart__svg')!==null);})()`,
 );
-record('详情页渲染主图（SVG 折线）', chart.value === 'true', chart.value || chart.err);
-
-const rows = evalJs(
+const bodyRows = () => evalJs(
 	`(function(){var l=app.workspace.getLeavesOfType('${DETAIL_VIEW_TYPE}')[0];return l?l.view.contentEl.querySelectorAll('tbody tr').length:-1;})()`,
 );
-record('详情页渲染数据表', Number(rows.value) >= 1, `rows=${rows.value}`);
+// data-value="table"/"line" 在工具栏中唯一（不像 calendar/yoy 会与模式段重名），
+// 故可安全地按值点击图型段。
+const pickChart = (v) => evalJs(
+	`(function(){var l=app.workspace.getLeavesOfType('${DETAIL_VIEW_TYPE}')[0];if(!l)return 'no-leaf';var b=l.view.contentEl.querySelector('.mcd-segmented__item[data-value="${v}"]');if(!b)return 'no-btn';b.click();return 'clicked';})()`,
+);
+
+const chart0 = hasChart();
+record('详情页渲染主图（ECharts canvas 或 SVG 兜底）', chart0.value === 'true', chart0.value || chart0.err);
+
+const baseRows = Number(bodyRows().value);
+record('详情页渲染数据表', baseRows >= 1, `rows=${baseRows}`);
 
 // 7a. 详情 view_state 存了 key（T3-6：重载 leaf 恢复到同一指标）
 const stateKey = evalJs(
 	`(function(){var l=app.workspace.getLeavesOfType('${DETAIL_VIEW_TYPE}')[0];return l?JSON.stringify(l.view.getState()||{}):'{}';})()`,
 );
 record('详情 view_state 存有 key', stateKey.value.includes(DETAIL_KEY), `state=${stateKey.value}`);
+
+// 7b. 切图型不动数据（T3-6 验收 / spec §9-1）：点『表格』主图应隐藏、点『折线』
+//     主图应恢复，但 tbody 行数始终不变——图型只改画法，绝不改底层数据。
+const toTable = pickChart('table');
+await sleep(400);
+const tableChart = hasChart();
+const tableRows = Number(bodyRows().value);
+record('切图型→表格：主图隐藏', tableChart.value === 'false', `pick=${toTable.value} chart=${tableChart.value}`);
+record('切图型→表格：数据行数不变', tableRows === baseRows, `rows=${tableRows} base=${baseRows}`);
+
+const toLine = pickChart('line');
+await sleep(400);
+const lineChart = hasChart();
+const lineRows = Number(bodyRows().value);
+record('切图型→折线：主图恢复', lineChart.value === 'true', `pick=${toLine.value} chart=${lineChart.value}`);
+record('切图型→折线：数据行数不变', lineRows === baseRows, `rows=${lineRows} base=${baseRows}`);
+
+// 7c. 切变换到同比（spec §9-2）：消费 retail_sales_total_yoy sibling，主图按同比
+//     重画，但数据表仍是原值序列（表与变换无关），行数不变。
+evalJs(
+	`(function(){var l=app.workspace.getLeavesOfType('${DETAIL_VIEW_TYPE}')[0];if(!l)return 'no-leaf';var s=l.view.getState();s.transform='yoy';l.view.setState(s,{history:false});return 'ok';})()`,
+);
+await sleep(500);
+const yoyState = evalJs(
+	`(function(){var l=app.workspace.getLeavesOfType('${DETAIL_VIEW_TYPE}')[0];return l?l.view.getState().transform:'?';})()`,
+);
+const yoyChart = hasChart();
+const yoyRows = Number(bodyRows().value);
+record('切变换→同比：状态生效', yoyState.value === 'yoy', `transform=${yoyState.value}`);
+record('切变换→同比：主图重画', yoyChart.value === 'true', `chart=${yoyChart.value}`);
+record('切变换→同比：数据行数不变', yoyRows === baseRows, `rows=${yoyRows} base=${baseRows}`);
+
+// 7d. 叠加下拉诚实禁用（spec §9-3/§9-4 + UI-UX §6）：真实 capabilities 中
+//     retail_sales_total 的 overlays={} 无候选，叠加下拉应被禁用而非提供空操作。
+//     跨 region 双图/单轴叠加渲染需真实候选序列，当前 vault 无此类数据，故由单测
+//     覆盖（overlay.spec / chartModel.spec dual / option.spec 双 grid / detail.spec
+//     双 pane），冒烟不虚构第二条序列（D-M3-5/D-M3-6）。
+const overlayState = evalJs(
+	`(function(){var l=app.workspace.getLeavesOfType('${DETAIL_VIEW_TYPE}')[0];if(!l)return 'no-leaf';var s=l.view.contentEl.querySelector('select.mcd-select');return s?String(s.disabled):'no-select';})()`,
+);
+record('叠加下拉：无候选时诚实禁用', overlayState.value === 'true', `disabled=${overlayState.value}`);
+
+// 7e. view_state 全字段往返（spec §9-7 / G7）：setState 写全 7 字段，getState 原样
+//     读回，证明重开的标签页恢复到同一指标、同一分析视角。
+const fullState = `{key:'${DETAIL_KEY}',mode:'yoy',chartType:'calendar',transform:'yoy',overlay:null,range:'3y',smoothing:true}`;
+evalJs(
+	`(function(){var l=app.workspace.getLeavesOfType('${DETAIL_VIEW_TYPE}')[0];if(!l)return 'no-leaf';l.view.setState(${fullState},{history:false});return 'ok';})()`,
+);
+await sleep(500);
+const rtRaw = evalJs(
+	`(function(){var l=app.workspace.getLeavesOfType('${DETAIL_VIEW_TYPE}')[0];return l?JSON.stringify(l.view.getState()||{}):'{}';})()`,
+);
+let rtOk = false;
+try {
+	const g = JSON.parse(rtRaw.value);
+	rtOk =
+		g.key === DETAIL_KEY && g.mode === 'yoy' && g.chartType === 'calendar' &&
+		g.transform === 'yoy' && g.overlay === null && g.range === '3y' &&
+		g.smoothing === true;
+} catch {
+	rtOk = false;
+}
+record('view_state 全字段 setState→getState 往返', rtOk, `state=${rtRaw.value}`);
 
 // 8. 真实数据渲染后控制台仍无错误
 const errs2 = run(['dev:errors']);
