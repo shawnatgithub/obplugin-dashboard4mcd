@@ -1,0 +1,20 @@
+{
+  "schema_version": "indicator_series_v1",
+  "key": "disposable_income_yoy",
+  "title": "居民人均可支配收入同比（季度）",
+  "region": "CN",
+  "frequency": "quarterly",
+  "date_grain": "quarter",
+  "unit": "yoy_pct",
+  "null_policy": "null_not_zero",
+  "status": "active",
+  "source": "akshare_nbs",
+  "generated_at": "2026-10-11T08:00:00+08:00",
+  "series": [
+    { "date": "2025-Q3", "value": 5.1, "revision": 1 },
+    { "date": "2025-Q4", "value": 5.3, "revision": 1 },
+    { "date": "2026-Q1", "value": 5.0, "revision": 1 },
+    { "date": "2026-Q2", "value": 5.2, "revision": 1 }
+  ],
+  "quality": { "last_date": "2026-Q2", "errors": [] }
+}

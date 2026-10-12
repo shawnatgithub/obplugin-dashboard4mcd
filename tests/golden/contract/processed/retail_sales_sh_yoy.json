@@ -1,0 +1,20 @@
+{
+  "schema_version": "indicator_series_v1",
+  "key": "retail_sales_sh_yoy",
+  "title": "上海社会消费品零售总额同比",
+  "region": "SH",
+  "frequency": "monthly",
+  "date_grain": "month",
+  "unit": "yoy_pct",
+  "null_policy": "null_not_zero",
+  "status": "active",
+  "source": "akshare_nbs",
+  "generated_at": "2026-10-11T08:00:00+08:00",
+  "series": [
+    { "date": "2026-05", "value": 2.6, "revision": 1 },
+    { "date": "2026-06", "value": 2.4, "revision": 1 },
+    { "date": "2026-07", "value": 2.5, "revision": 1 },
+    { "date": "2026-08", "value": 2.3, "revision": 1 }
+  ],
+  "quality": { "last_date": "2026-08", "errors": [] }
+}

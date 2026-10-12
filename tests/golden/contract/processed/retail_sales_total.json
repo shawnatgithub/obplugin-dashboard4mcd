@@ -1,0 +1,28 @@
+{
+  "schema_version": "indicator_series_v1",
+  "key": "retail_sales_total",
+  "title": "全国社会消费品零售总额",
+  "region": "CN",
+  "frequency": "monthly",
+  "date_grain": "month",
+  "unit": "level_cny",
+  "null_policy": "null_not_zero",
+  "status": "active",
+  "source": "akshare_eastmoney",
+  "generated_at": "2026-10-11T08:00:00+08:00",
+  "series": [
+    { "date": "2025-10", "value": 40454.0, "revision": 1 },
+    { "date": "2025-11", "value": 43898.0, "revision": 1 },
+    { "date": "2025-12", "value": 45312.0, "revision": 1 },
+    { "date": "2026-01", "value": 39800.0, "revision": 1 },
+    { "date": "2026-02", "value": 38200.0, "revision": 1 },
+    { "date": "2026-03", "value": 41300.0, "revision": 1 },
+    { "date": "2026-04", "value": 40900.0, "revision": 1 },
+    { "date": "2026-05", "value": 42100.0, "revision": 1 },
+    { "date": "2026-06", "value": null, "revision": 1 },
+    { "date": "2026-07", "value": null, "revision": 1 },
+    { "date": "2026-08", "value": 43200.0, "revision": 1 },
+    { "date": "2026-09", "value": 44100.0, "revision": 1 }
+  ],
+  "quality": { "last_date": "2026-09", "errors": [] }
+}

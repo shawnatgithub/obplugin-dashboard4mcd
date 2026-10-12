@@ -1,0 +1,74 @@
+{
+  "schema_version": "manifest_v1",
+  "generated_at": "2026-10-11T08:00:00+08:00",
+  "timezone": "Asia/Shanghai",
+  "capabilities_file": "capabilities.json",
+  "indicators": [
+    {
+      "key": "retail_sales_total",
+      "file": "retail_sales_total.json",
+      "schema": "indicator_series_v1",
+      "region": "CN",
+      "frequency": "monthly",
+      "unit": "level_cny",
+      "status": "active",
+      "last_date": "2026-09",
+      "freshness": "fresh"
+    },
+    {
+      "key": "retail_sales_total_yoy",
+      "file": "retail_sales_total_yoy.json",
+      "schema": "indicator_series_v1",
+      "region": "CN",
+      "frequency": "monthly",
+      "unit": "yoy_pct",
+      "status": "active",
+      "last_date": "2026-09",
+      "freshness": "fresh"
+    },
+    {
+      "key": "money_supply_m1_yoy",
+      "file": "money_supply_m1_yoy.json",
+      "schema": "indicator_series_v1",
+      "region": "CN",
+      "frequency": "monthly",
+      "unit": "yoy_pct",
+      "status": "active",
+      "last_date": "2026-08",
+      "freshness": "aging"
+    },
+    {
+      "key": "cpi_national_yoy",
+      "file": "cpi_national_yoy.json",
+      "schema": "indicator_series_v1",
+      "region": "CN",
+      "frequency": "monthly",
+      "unit": "yoy_pct",
+      "status": "active",
+      "last_date": "2026-03",
+      "freshness": "stale"
+    },
+    {
+      "key": "disposable_income_yoy",
+      "file": "disposable_income_yoy.json",
+      "schema": "indicator_series_v1",
+      "region": "CN",
+      "frequency": "quarterly",
+      "unit": "yoy_pct",
+      "status": "active",
+      "last_date": null,
+      "freshness": "unknown"
+    },
+    {
+      "key": "retail_sales_sh_yoy",
+      "file": "retail_sales_sh_yoy.json",
+      "schema": "indicator_series_v1",
+      "region": "SH",
+      "frequency": "monthly",
+      "unit": "yoy_pct",
+      "status": "active",
+      "last_date": "2026-08",
+      "freshness": "aging"
+    }
+  ]
+}

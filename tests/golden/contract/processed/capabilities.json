@@ -1,0 +1,100 @@
+{
+  "schema_version": "capabilities_v1",
+  "generated_at": "2026-10-11T08:00:00+08:00",
+  "panels": {
+    "retail_sales_total": {
+      "modes": {
+        "calendar": { "supported": true },
+        "seasonal_compare": { "supported": true },
+        "yoy": { "supported": true, "source": "retail_sales_total_yoy" }
+      },
+      "overlays": {
+        "cpi_national_yoy": { "supported": true, "axis_mode": "single", "min_overlap_months": 36 }
+      },
+      "chart_types": ["line", "table", "calendar"],
+      "transforms": {
+        "level": { "supported": true },
+        "yoy": { "supported": true, "source": "retail_sales_total_yoy" },
+        "mom": { "supported": false, "reason_code": "DERIVED_NOT_FOUND" }
+      }
+    },
+    "retail_sales_total_yoy": {
+      "modes": {
+        "calendar": { "supported": true },
+        "seasonal_compare": { "supported": false, "reason_code": "INSUFFICIENT_HISTORY" },
+        "yoy": { "supported": true }
+      },
+      "overlays": {},
+      "chart_types": ["line", "table"],
+      "transforms": {
+        "level": { "supported": true },
+        "yoy": { "supported": true },
+        "mom": { "supported": false, "reason_code": "DERIVED_NOT_FOUND" }
+      }
+    },
+    "cpi_national_yoy": {
+      "modes": {
+        "calendar": { "supported": false, "reason_code": "MISSING_MONTHS", "warnings": ["连续缺月超过 2 个月"] },
+        "seasonal_compare": { "supported": true },
+        "yoy": { "supported": true }
+      },
+      "overlays": {
+        "retail_sales_total": { "supported": false, "reason_code": "UNIT_MISMATCH" }
+      },
+      "chart_types": ["line", "table"],
+      "transforms": {
+        "level": { "supported": false, "reason_code": "DERIVED_NOT_FOUND" },
+        "yoy": { "supported": true },
+        "mom": { "supported": false, "reason_code": "DERIVED_NOT_FOUND" }
+      }
+    },
+    "money_supply_m1_yoy": {
+      "modes": {
+        "calendar": { "supported": true },
+        "seasonal_compare": { "supported": true },
+        "yoy": { "supported": true }
+      },
+      "overlays": {},
+      "chart_types": ["line", "table"],
+      "transforms": {
+        "level": { "supported": false, "reason_code": "DERIVED_NOT_FOUND" },
+        "yoy": { "supported": true },
+        "mom": { "supported": false, "reason_code": "DERIVED_NOT_FOUND" }
+      }
+    },
+    "disposable_income_yoy": {
+      "modes": {
+        "calendar": { "supported": false, "reason_code": "INCOMPATIBLE_FREQUENCY" },
+        "seasonal_compare": { "supported": false, "reason_code": "INCOMPATIBLE_FREQUENCY" },
+        "yoy": { "supported": false, "reason_code": "INCOMPATIBLE_FREQUENCY" }
+      },
+      "overlays": {},
+      "chart_types": ["table"],
+      "transforms": {
+        "level": { "supported": false, "reason_code": "DERIVED_NOT_FOUND" },
+        "yoy": { "supported": true },
+        "mom": { "supported": false, "reason_code": "INCOMPATIBLE_FREQUENCY" }
+      }
+    },
+    "retail_sales_sh_yoy": {
+      "modes": {
+        "calendar": { "supported": true },
+        "seasonal_compare": { "supported": true },
+        "yoy": { "supported": true }
+      },
+      "overlays": {
+        "retail_sales_total": { "supported": false, "reason_code": "INCOMPATIBLE_REGION" }
+      },
+      "chart_types": ["line", "table"],
+      "transforms": {
+        "level": { "supported": false, "reason_code": "DERIVED_NOT_FOUND" },
+        "yoy": { "supported": true },
+        "mom": { "supported": false, "reason_code": "DERIVED_NOT_FOUND" }
+      }
+    },
+    "shanghai_finance_quarterly": {
+      "source_supported": false,
+      "reason_code": "SOURCE_UNSUPPORTED"
+    }
+  }
+}

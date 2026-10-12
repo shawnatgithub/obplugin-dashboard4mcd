@@ -1,0 +1,22 @@
+{
+  "schema_version": "signal_state_v1",
+  "generated_at": "2026-10-11T08:00:00+08:00",
+  "timezone": "Asia/Shanghai",
+  "signals": [
+    {
+      "key": "demand_weak_risk",
+      "status": "insufficient",
+      "values": { "catering_vs_goods_gap": null }
+    },
+    {
+      "key": "income_consumption_gap_watch",
+      "status": "support",
+      "values": { "disposable_income_yoy": 5.2, "retail_sales_total_yoy": 3.8 }
+    },
+    {
+      "key": "price_demand_conflict_watch",
+      "status": "conflict",
+      "values": { "cpi_national_yoy": 0.3, "retail_sales_total_yoy": 3.8 }
+    }
+  ]
+}

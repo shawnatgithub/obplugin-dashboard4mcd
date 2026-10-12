@@ -1,0 +1,21 @@
+{
+  "schema_version": "indicator_series_v1",
+  "key": "money_supply_m1_yoy",
+  "title": "货币供应量 M1 同比",
+  "region": "CN",
+  "frequency": "monthly",
+  "date_grain": "month",
+  "unit": "yoy_pct",
+  "null_policy": "null_not_zero",
+  "status": "active",
+  "source": "akshare_eastmoney",
+  "generated_at": "2026-10-11T08:00:00+08:00",
+  "series": [
+    { "date": "2026-04", "value": 2.8, "revision": 1 },
+    { "date": "2026-05", "value": 3.0, "revision": 1 },
+    { "date": "2026-06", "value": 3.1, "revision": 1 },
+    { "date": "2026-07", "value": 3.0, "revision": 1 },
+    { "date": "2026-08", "value": 3.2, "revision": 1 }
+  ],
+  "quality": { "last_date": "2026-08", "errors": [] }
+}

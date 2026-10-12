@@ -1,0 +1,22 @@
+{
+  "schema_version": "indicator_series_v1",
+  "key": "retail_sales_total_yoy",
+  "title": "全国社会消费品零售总额当月同比",
+  "region": "CN",
+  "frequency": "monthly",
+  "date_grain": "month",
+  "unit": "yoy_pct",
+  "null_policy": "null_not_zero",
+  "status": "active",
+  "source": "akshare_eastmoney",
+  "generated_at": "2026-10-11T08:00:00+08:00",
+  "series": [
+    { "date": "2026-05", "value": 4.4, "revision": 1 },
+    { "date": "2026-06", "value": 3.9, "revision": 1 },
+    { "date": "2026-07", "value": 3.7, "revision": 1 },
+    { "date": "2026-08", "value": 3.9, "revision": 1 },
+    { "date": "2026-08", "value": 4.1, "revision": 2 },
+    { "date": "2026-09", "value": 3.8, "revision": 1 }
+  ],
+  "quality": { "last_date": "2026-09", "errors": [] }
+}

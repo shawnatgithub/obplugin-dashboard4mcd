@@ -1,0 +1,6 @@
+# Contract-freeze zone (T1-4, G3): the golden fixtures and their CHECKSUMS.sha256
+# manifest are a byte-identical copy of the ETL repo's tests/golden/ tree. Pin the
+# whole tree to LF regardless of core.autocrlf, so the checked-out bytes - and
+# therefore the sha256 digests the jest `checksums` test recomputes - never drift
+# from the sealed manifest. Keep this rule in sync with the ETL repo's .gitattributes.
+tests/golden/** text eol=lf
