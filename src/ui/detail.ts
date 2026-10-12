@@ -202,3 +202,33 @@ export function renderDetail(root: HTMLElement, props: DetailProps): void {
 	view.appendChild(main);
 	root.appendChild(view);
 }
+
+export interface EmptyDetailHandlers {
+	/** Reveal the overview so the reader can pick an indicator. */
+	onOpenOverview?: () => void;
+}
+
+/**
+ * Rendered when a detail leaf exists but no indicator key is known (e.g. it was
+ * restored without view_state). Points back to the overview instead of showing
+ * a blank page.
+ */
+export function renderEmptyDetail(
+	root: HTMLElement,
+	handlers: EmptyDetailHandlers = {},
+): void {
+	clearEl(root);
+	const view = el('div', 'mcd-root mcd-view');
+	const empty = el('div', 'mcd-empty');
+	empty.appendChild(el('div', 'mcd-empty__icon'));
+	empty.appendChild(el('div', 'mcd-empty__title', '未选择指标'));
+	empty.appendChild(
+		el('p', 'mcd-muted', '请从总览仪表盘选择一个指标卡片以查看详情。'),
+	);
+	const open = el('button', 'mcd-button mcd-button--primary', '打开总览');
+	open.type = 'button';
+	open.addEventListener('click', () => handlers.onOpenOverview?.());
+	empty.appendChild(open);
+	view.appendChild(empty);
+	root.appendChild(view);
+}

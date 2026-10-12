@@ -814,6 +814,31 @@
 	text-align: left;
 }
 
+.mcd-onboarding__step-body {
+	margin: var(--mcd-sp-1) 0 0;
+	font-size: var(--mcd-fs-small);
+}
+
+.mcd-onboarding__detail {
+	max-width: 760px;
+	text-align: left;
+}
+
+.mcd-empty__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--mcd-sp-3);
+	justify-content: center;
+	margin-top: var(--mcd-sp-2);
+}
+
+.mcd-button--primary {
+	border-color: var(--mcd-accent);
+	background: color-mix(in srgb, var(--mcd-accent) 14%, transparent);
+	color: var(--mcd-accent);
+	font-weight: 500;
+}
+
 /* ---------- 13. 设置页（Obsidian SettingTab 内的分区） ---------- */
 
 .mcd-settings__section-title {

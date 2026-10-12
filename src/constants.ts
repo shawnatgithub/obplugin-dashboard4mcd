@@ -12,8 +12,14 @@ export const PLUGIN_ID = 'mcd';
 /** Workspace view type registered for the overview dashboard. */
 export const VIEW_TYPE_MCD_OVERVIEW = 'mcd-overview-view';
 
+/** Workspace view type registered for the single-indicator detail page. */
+export const VIEW_TYPE_MCD_DETAIL = 'mcd-detail-view';
+
 /** View title shown in the tab and command palette. */
 export const VIEW_TITLE = '宏观数据看板';
+
+/** Fallback tab title for the detail view before an indicator key is known. */
+export const DETAIL_VIEW_TITLE = '指标详情';
 
 /** Ribbon / tab icon (Lucide name bundled with Obsidian). */
 export const VIEW_ICON = 'trending-up';
