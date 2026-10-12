@@ -744,6 +744,11 @@
 	height: auto;
 }
 
+/* M3 详情页主图（ECharts，G6）：canvas 块级消除基线间隙；容器高度由 .mcd-chart 固定为 320px */
+.mcd-chart--echarts canvas {
+	display: block;
+}
+
 .mcd-chart__svg {
 	display: block;
 	width: 100%;

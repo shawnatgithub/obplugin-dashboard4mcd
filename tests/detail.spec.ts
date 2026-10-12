@@ -1,5 +1,10 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import {
+	buildChartModel,
+	type ChartSeriesSource,
+} from '../src/analysis/chartModel';
+import { parseViewState } from '../src/analysis/viewState';
 import { formatValue, toDetail } from '../src/contract/mapper';
 import {
 	parseCapabilities,
@@ -12,7 +17,7 @@ import type {
 	IndicatorSeriesV1,
 	ManifestV1,
 } from '../src/contract/types';
-import { EMPTY_CHART_TEXT } from '../src/ui/chartView';
+import { EMPTY_CHART_TEXT, renderChartSvg } from '../src/ui/chartView';
 import { renderDetail } from '../src/ui/detail';
 import type { DetailHandlers } from '../src/ui/detail';
 
@@ -76,9 +81,17 @@ function render(
 	handlers: DetailHandlers = {},
 ): HTMLElement {
 	const model = toDetail(key, manifest, series, caps);
+	// The composer now takes a pre-built ChartModel plus an injected renderer.
+	// The tests drive it with the pure SVG fallback (no ECharts) and the default
+	// view state, so every asserted string stays a real contract byte.
+	const chart = buildChartModel(
+		model,
+		parseViewState({ key }),
+		new Map<string, ChartSeriesSource>(),
+	);
 	const root = document.createElement('div');
 	document.body.appendChild(root);
-	renderDetail(root, { model, handlers });
+	renderDetail(root, { model, chart, renderChart: renderChartSvg, handlers });
 	return root;
 }
 

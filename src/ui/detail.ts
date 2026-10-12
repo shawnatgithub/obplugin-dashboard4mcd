@@ -14,6 +14,7 @@
  * (T6: 置灰零抛错).
  */
 
+import type { ChartModel } from '../analysis/chartModel';
 import {
 	type DetailModel,
 	formatValue,
@@ -23,7 +24,7 @@ import {
 } from '../contract/mapper';
 import type { SeriesPoint, Unit } from '../contract/types';
 import { freshnessDotClass, freshnessLabel } from '../format';
-import { renderLineChart } from './chartView';
+import type { ChartHandle, RenderChartFn } from './chartView';
 import { clearEl, el, svgEl } from './dom';
 import { buildToolbar } from './toolbar';
 
@@ -38,6 +39,10 @@ export interface DetailHandlers {
 
 export interface DetailProps {
 	model: DetailModel;
+	/** The renderer-agnostic chart the injected `renderChart` draws. */
+	chart: ChartModel;
+	/** Injected chart renderer — ECharts in the app, the SVG fallback in tests. */
+	renderChart: RenderChartFn;
 	handlers?: DetailHandlers;
 }
 
@@ -170,8 +175,14 @@ function sourceFootnote(model: DetailModel): string {
 	return `${src} · 缺失期以 null 保留，不插值、不填 0。`;
 }
 
-/** Render (or re-render) the detail page for `model` into `root`. */
-export function renderDetail(root: HTMLElement, props: DetailProps): void {
+/**
+ * Render (or re-render) the detail page for `model` into `root` and return the
+ * chart handle (the caller disposes it before the next render / on close).
+ */
+export function renderDetail(
+	root: HTMLElement,
+	props: DetailProps,
+): ChartHandle {
 	clearEl(root);
 	const model = props.model;
 	const handlers = props.handlers ?? {};
@@ -191,14 +202,9 @@ export function renderDetail(root: HTMLElement, props: DetailProps): void {
 	// absent panel, so S3 needs no branch here.
 	main.appendChild(buildToolbar({ panel: model.panel }));
 
-	// renderLineChart owns the chart classes and falls back to a wireframe when
-	// the series has no plottable value, so S3 (limited) needs no branch here.
+	// The chart host is a bare figure; the injected renderer owns its classes and
+	// its empty/fallback states, so S3 (limited) needs no branch here either.
 	const chartHost = el('figure');
-	renderLineChart(chartHost, {
-		points: model.points,
-		unit: unitLabel(model.unit),
-		source: model.source,
-	});
 	main.appendChild(chartHost);
 
 	const table = buildTable(model);
@@ -207,7 +213,11 @@ export function renderDetail(root: HTMLElement, props: DetailProps): void {
 	main.appendChild(el('p', 'mcd-muted mcd-fs-sm', sourceFootnote(model)));
 
 	view.appendChild(main);
+	// Attach the tree first so the renderer can resolve the inherited --mcd-*
+	// tokens via getComputedStyle (they cascade down from .mcd-root only once the
+	// host is in the document), then draw the chart and hand back its handle.
 	root.appendChild(view);
+	return props.renderChart(chartHost, props.chart);
 }
 
 export interface EmptyDetailHandlers {

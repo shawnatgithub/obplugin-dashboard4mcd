@@ -7,10 +7,13 @@
  * period (never interpolated, §6 断线), a dashed marker per gap, an end-point
  * dot on the latest observation, and a figcaption naming the unit and source.
  *
- * The whole chart sits behind this one function so M3 can swap the internals
- * for ECharts (G6) without touching the detail composer that calls it.
+ * M3 keeps this as the dependency-free fallback behind the shared `RenderChartFn`
+ * seam (bottom of this file): the ECharts glue in `./chart/echartsView` renders
+ * the same `ChartModel` and routes here whenever ECharts is unavailable, so the
+ * detail composer never depends on a specific renderer (D-M2-4 / D-M3-4).
  */
 
+import type { ChartModel } from '../analysis/chartModel';
 import {
 	CHART_HEIGHT,
 	CHART_PAD,
@@ -164,4 +167,51 @@ export function renderLineChart(container: HTMLElement, spec: ChartSpec): void {
 
 	container.appendChild(svg);
 	container.appendChild(buildCaption(spec));
+}
+
+/* ---------- The renderer-agnostic chart seam (M3-T3) ---------- */
+
+/**
+ * A drawn chart's teardown handle. `dispose` releases any renderer resources
+ * (an ECharts instance) so a re-render or a closed leaf never leaks; the SVG
+ * renderer holds none and returns `NOOP_CHART_HANDLE`.
+ */
+export interface ChartHandle {
+	dispose: () => void;
+}
+
+/** The handle for a renderer with nothing to tear down (the SVG fallback). */
+export const NOOP_CHART_HANDLE: ChartHandle = { dispose: () => { /* no-op */ } };
+
+/**
+ * Draw a `ChartModel` into `container` and return its handle. The app injects the
+ * ECharts glue; tests and the fallback inject `renderChartSvg`. Keeping this a
+ * plain function type lets `detail.ts` stay ECharts-free (it imports only types).
+ */
+export type RenderChartFn = (
+	container: HTMLElement,
+	model: ChartModel,
+) => ChartHandle;
+
+/**
+ * The dependency-free SVG renderer (D-M3-4 fallback). `table` hides the chart;
+ * any other type routes the primary series through `renderLineChart`, which
+ * breaks at every null and shows the honest wireframe when nothing is plottable.
+ * It never touches ECharts, so it is safe under jsdom and in the composer tests.
+ */
+export function renderChartSvg(
+	container: HTMLElement,
+	model: ChartModel,
+): ChartHandle {
+	if (model.chartType === 'table') {
+		clearEl(container);
+		return NOOP_CHART_HANDLE;
+	}
+	const primary = model.series[0];
+	renderLineChart(container, {
+		points: primary ? primary.points : [],
+		unit: model.yAxes[0]?.label ?? '',
+		source: model.source,
+	});
+	return NOOP_CHART_HANDLE;
 }
