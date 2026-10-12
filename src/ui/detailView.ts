@@ -26,6 +26,7 @@ import {
 import {
 	DEFAULT_VIEW_STATE,
 	parseViewState,
+	type ChartType,
 	type ViewState,
 } from '../analysis/viewState';
 import { loadContract, type LoadResult } from '../contract/loader';
@@ -61,6 +62,18 @@ function toChartSources(
 		});
 	}
 	return sources;
+}
+
+/** The chart shapes the 年度 grain may render (mirrors the toolbar whitelist). */
+const ANNUAL_CHART_TYPES: readonly ChartType[] = ['bar', 'line', 'table'];
+
+/**
+ * Strip a trailing `_annual` so the grain toggle always resolves the sibling
+ * from the monthly parent key, whether the persisted key is the parent or (from
+ * an older blob) already the annual one.
+ */
+function baseKeyOf(key: string): string {
+	return key.endsWith('_annual') ? key.slice(0, -'_annual'.length) : key;
 }
 
 export class McdDetailView extends ItemView {
@@ -166,20 +179,52 @@ export class McdDetailView extends ItemView {
 			return;
 		}
 
-		const series = result.seriesByKey.get(this.view.key) ?? null;
-		const detail = toDetail(this.view.key, result.manifest, series, result.caps);
+		// Resolve the grain (CR-2026-10-13): the 年度 toggle renders the published
+		// `<key>_annual` sibling (a December-累计 year total), never a month-precision
+		// mini-series. The sibling is looked up from the monthly parent key, and the
+		// annual grain is honored only when that sibling actually exists — otherwise
+		// it falls back to monthly so the chart never claims an unpublished series.
+		const baseKey = baseKeyOf(this.view.key);
+		const annualKey = `${baseKey}_annual`;
+		const annualAvailable = result.manifest.indicators.some(
+			(i) => i.key === annualKey,
+		);
+		const grain = this.view.grain === 'annual' && annualAvailable ? 'annual' : 'monthly';
+		const effectiveKey = grain === 'annual' ? annualKey : baseKey;
+
+		const series = result.seriesByKey.get(effectiveKey) ?? null;
+		const detail = toDetail(effectiveKey, result.manifest, series, result.caps);
+		// In the annual grain the four monthly-only refinements are meaningless (a
+		// published year total has no transform / overlay / sub-year window /
+		// smoothing), so normalize the view the chart model consumes and clamp the
+		// shape to the year-total-safe whitelist. The toolbar keeps reflecting the
+		// persisted view so the reader's 粒度 / 图型 picks stay visible.
+		const chartView: ViewState =
+			grain === 'annual'
+				? {
+						...this.view,
+						grain,
+						transform: 'level',
+						overlay: null,
+						smoothing: false,
+						chartType: ANNUAL_CHART_TYPES.includes(this.view.chartType)
+							? this.view.chartType
+							: 'bar',
+					}
+				: { ...this.view, grain };
 		// Fold the contract series + capabilities + the persisted view state into
 		// the renderer-agnostic model, then let the composer draw it with the
 		// injected ECharts renderer (which falls back to SVG on any failure).
 		const chart = buildChartModel(
 			detail,
-			this.view,
+			chartView,
 			toChartSources(result.seriesByKey, result.manifest),
 		);
 		this.chartHandle = renderDetail(this.contentEl, {
 			model: detail,
 			chart,
-			view: this.view,
+			view: { ...this.view, grain },
+			annualAvailable,
 			renderChart,
 			onViewStateChange: this.onViewChange,
 			handlers: {

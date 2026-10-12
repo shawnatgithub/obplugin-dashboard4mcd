@@ -22,6 +22,13 @@ export type ModeKey = 'calendar' | 'seasonal_compare' | 'yoy';
 /** The 图型 segment: which shape renders the series (`table` hides the chart). */
 export type ChartType = 'line' | 'area' | 'bar' | 'calendar' | 'table';
 
+/**
+ * The 粒度 segment (CR-2026-10-13): the monthly parent series or its published
+ * annual-total sibling. `annual` is only reachable when the manifest carries a
+ * `<key>_annual` sibling, so the detail view falls back to `monthly` otherwise.
+ */
+export type Grain = 'monthly' | 'annual';
+
 /** Everything the detail view persists and the chart model consumes. */
 export interface ViewState {
 	key: string;
@@ -32,6 +39,7 @@ export interface ViewState {
 	overlay: string | null;
 	range: RangeKey;
 	smoothing: boolean;
+	grain: Grain;
 }
 
 /** The default view for a freshly opened indicator (backward-compatible with M2). */
@@ -42,12 +50,14 @@ export const DEFAULT_VIEW_STATE: Omit<ViewState, 'key'> = {
 	overlay: null,
 	range: 'all',
 	smoothing: false,
+	grain: 'monthly',
 };
 
 const MODES: readonly ModeKey[] = ['calendar', 'seasonal_compare', 'yoy'];
 const CHART_TYPES: readonly ChartType[] = ['line', 'area', 'bar', 'calendar', 'table'];
 const TRANSFORMS: readonly TransformKey[] = ['level', 'yoy', 'mom'];
 const RANGES: readonly RangeKey[] = ['1y', '3y', '5y', 'all'];
+const GRAINS: readonly Grain[] = ['monthly', 'annual'];
 
 /** Return `value` when it is one of `allowed`, otherwise the `fallback`. */
 function oneOf<T extends string>(
@@ -74,5 +84,6 @@ export function parseViewState(raw: unknown): ViewState {
 		overlay: typeof obj.overlay === 'string' ? obj.overlay : null,
 		range: oneOf(obj.range, RANGES, DEFAULT_VIEW_STATE.range),
 		smoothing: obj.smoothing === true,
+		grain: oneOf(obj.grain, GRAINS, DEFAULT_VIEW_STATE.grain),
 	};
 }

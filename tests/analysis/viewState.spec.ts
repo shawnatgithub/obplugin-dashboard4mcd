@@ -30,6 +30,7 @@ describe('parseViewState', () => {
 				overlay: 'cpi_national_yoy',
 				range: '3y',
 				smoothing: true,
+				grain: 'annual',
 			}),
 		).toEqual({
 			key: 'retail_sales_total',
@@ -39,7 +40,15 @@ describe('parseViewState', () => {
 			overlay: 'cpi_national_yoy',
 			range: '3y',
 			smoothing: true,
+			grain: 'annual',
 		});
+	});
+
+	it('keeps a valid grain and defaults an unknown one to monthly', () => {
+		expect(parseViewState({ key: 'x', grain: 'annual' }).grain).toBe('annual');
+		expect(parseViewState({ key: 'x', grain: 'monthly' }).grain).toBe('monthly');
+		expect(parseViewState({ key: 'x', grain: 'weekly' }).grain).toBe('monthly');
+		expect(parseViewState({ key: 'x', grain: 42 }).grain).toBe('monthly');
 	});
 
 	it('falls back per field on invalid enum values', () => {
@@ -59,6 +68,7 @@ describe('parseViewState', () => {
 			overlay: null,
 			range: 'all',
 			smoothing: false,
+			grain: 'monthly',
 		});
 	});
 

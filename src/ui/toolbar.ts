@@ -18,7 +18,7 @@
 
 import type { RangeKey } from '../analysis/range';
 import type { TransformKey } from '../analysis/transform';
-import type { ChartType, ModeKey, ViewState } from '../analysis/viewState';
+import type { ChartType, Grain, ModeKey, ViewState } from '../analysis/viewState';
 import { isStub, reasonText } from '../contract/reasonText';
 import type {
 	FullPanel,
@@ -37,6 +37,11 @@ export interface ToolbarProps {
 	view: ViewState;
 	/** Emits a legal patch when an enabled control is activated. */
 	onChange: (patch: Partial<ViewState>) => void;
+	/**
+	 * True when the manifest carries a `<key>_annual` sibling, so the 年度 grain
+	 * is reachable (CR-2026-10-13). Without it the 年度 option is disabled.
+	 */
+	annualAvailable: boolean;
 }
 
 interface Option {
@@ -82,6 +87,16 @@ const CHART_LABEL: Record<string, string> = {
 	area: '面积',
 	bar: '柱状',
 };
+
+/**
+ * The 年度 grain renders a published annual total, not a monthly derivation, so
+ * the only honest shapes are a bar / line over year labels or the raw table —
+ * never a calendar or an area implying sub-year resolution (CR-2026-10-13).
+ */
+const ANNUAL_CHART_TYPES: ChartType[] = ['bar', 'line', 'table'];
+
+/** Tooltip for the 年度 option when the indicator has no annual sibling. */
+const ANNUAL_UNAVAILABLE = '该指标暂无年度总额序列';
 
 function chartLabel(value: string): string {
 	return CHART_LABEL[value] ?? value;
@@ -152,6 +167,74 @@ function chartOptions(panel: Panel): Option[] {
 		label: chartLabel(t),
 		supported: true,
 	}));
+}
+
+/**
+ * The 年度 grain ignores the monthly capabilities whitelist and offers exactly
+ * the year-total-safe shapes (bar / line / table), all enabled — the annual
+ * sibling carries no capabilities panel of its own.
+ */
+function annualChartOptions(): Option[] {
+	return ANNUAL_CHART_TYPES.map((t) => ({
+		value: t,
+		label: chartLabel(t),
+		supported: true,
+	}));
+}
+
+/**
+ * The 粒度 segment (CR-2026-10-13): 月度 always enabled, 年度 enabled only when
+ * an annual sibling exists. Picking a grain also resets the chart type to that
+ * grain's honest default (年度 → bar, 月度 → line) so the two never disagree.
+ * A source-unsupported stub grays both options with the stub reason, so the
+ * whole toolbar explains itself consistently in the limited state (S3).
+ */
+function buildGrainSegment(
+	panel: Panel,
+	view: ViewState,
+	annualAvailable: boolean,
+	onChange: ToolbarProps['onChange'],
+): HTMLElement {
+	const stubReason = panel && isStub(panel) ? reasonText(panel.reason_code) : null;
+	const active: Grain | null = stubReason
+		? null
+		: view.grain === 'annual' && annualAvailable
+			? 'annual'
+			: 'monthly';
+	const group = el('div', 'mcd-toolbar__group');
+	group.appendChild(el('span', 'mcd-toolbar__label', '粒度'));
+
+	const seg = el('div', 'mcd-segmented');
+	const grains: { value: Grain; label: string }[] = [
+		{ value: 'monthly', label: '月度' },
+		{ value: 'annual', label: '年度' },
+	];
+	for (const g of grains) {
+		const btn = el('button', 'mcd-segmented__item', g.label);
+		btn.type = 'button';
+		btn.dataset.value = g.value;
+		const on = g.value === active;
+		btn.classList.toggle('is-selected', on);
+		btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+		const enabled = !stubReason && (g.value === 'monthly' || annualAvailable);
+		if (!enabled) {
+			btn.disabled = true;
+			btn.classList.add('is-disabled');
+			btn.setAttribute('aria-disabled', 'true');
+			btn.title = stubReason ?? ANNUAL_UNAVAILABLE;
+		} else {
+			btn.addEventListener('click', () =>
+				onChange(
+					g.value === 'annual'
+						? { grain: 'annual', chartType: 'bar' }
+						: { grain: 'monthly', chartType: 'line' },
+				),
+			);
+		}
+		seg.appendChild(btn);
+	}
+	group.appendChild(seg);
+	return group;
 }
 
 /** The preferred value when supported, else the first supported, else null. */
@@ -315,9 +398,17 @@ function buildOverlay(
  * when capabilities are absent and to all-grayed when the source is a stub.
  */
 export function buildToolbar(props: ToolbarProps): HTMLElement {
-	const { panel, view, onChange } = props;
+	const { panel, view, onChange, annualAvailable } = props;
 	const toolbar = el('div', 'mcd-toolbar');
 	toolbar.setAttribute('role', 'toolbar');
+
+	// The 年度 grain is only meaningful when an annual sibling exists; otherwise
+	// the persisted grain is treated as monthly so the toolbar never shows an
+	// active-but-disabled option.
+	const annual = view.grain === 'annual' && annualAvailable;
+
+	// 粒度 is always the first segment (CR-2026-10-13).
+	toolbar.appendChild(buildGrainSegment(panel, view, annualAvailable, onChange));
 
 	const modes = modeOptions(panel);
 	toolbar.appendChild(
@@ -326,12 +417,17 @@ export function buildToolbar(props: ToolbarProps): HTMLElement {
 		),
 	);
 
-	const charts = chartOptions(panel);
+	const charts = annual ? annualChartOptions() : chartOptions(panel);
 	toolbar.appendChild(
 		buildSegment('图型', charts, resolveActive(charts, view.chartType), (v) =>
 			onChange({ chartType: v as ChartType }),
 		),
 	);
+
+	// In the 年度 grain the four monthly-only refinement controls (变换 / 叠加 /
+	// 范围 / 平滑) are hidden, not grayed: a published annual total has no
+	// transform, overlay, sub-year window or smoothing to offer.
+	if (annual) return toolbar;
 
 	const transforms = transformOptions(panel);
 	toolbar.appendChild(

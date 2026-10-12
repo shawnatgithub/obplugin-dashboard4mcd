@@ -46,6 +46,7 @@ function toolbarFor(
 	key: string | null,
 	view?: ViewState,
 	onChange: (patch: Partial<ViewState>) => void = () => {},
+	annualAvailable = false,
 ): HTMLElement {
 	const panel = key === null ? null : panelFor(key);
 	const root = document.createElement('div');
@@ -55,6 +56,7 @@ function toolbarFor(
 			panel,
 			view: view ?? { ...DEFAULT_VIEW_STATE, key: key ?? '' },
 			onChange,
+			annualAvailable,
 		}),
 	);
 	return root.querySelector<HTMLElement>('.mcd-toolbar')!;
@@ -110,13 +112,80 @@ afterEach(() => {
 });
 
 describe('buildToolbar — layout', () => {
-	it('renders the four labelled segments in order', () => {
+	it('renders the labelled segments in order (grain first)', () => {
 		const toolbar = toolbarFor('retail_sales_total');
 		expect(toolbar.getAttribute('role')).toBe('toolbar');
 		const labels = Array.from(
 			toolbar.querySelectorAll('.mcd-toolbar__label'),
 		).map((l) => l.textContent);
-		expect(labels).toEqual(['模式', '图型', '变换', '叠加', '范围', '平滑']);
+		expect(labels).toEqual([
+			'粒度',
+			'模式',
+			'图型',
+			'变换',
+			'叠加',
+			'范围',
+			'平滑',
+		]);
+	});
+});
+
+describe('buildToolbar — grain segment (CR-2026-10-13)', () => {
+	it('disables 年度 when no annual sibling exists', () => {
+		const toolbar = toolbarFor('retail_sales_total', undefined, () => {}, false);
+		const seg = segment(toolbar, '粒度');
+		expect(items(seg).map((i) => i.dataset.value)).toEqual(['monthly', 'annual']);
+		expect(selectedValues(seg)).toEqual(['monthly']);
+		const annual = item(seg, 'annual');
+		expect(annual.disabled).toBe(true);
+		expect(annual.title.length).toBeGreaterThan(0);
+	});
+
+	it('enables 年度 when an annual sibling exists and emits the grain patch', () => {
+		const onChange = jest.fn();
+		const toolbar = toolbarFor('retail_sales_total', undefined, onChange, true);
+		const annual = item(segment(toolbar, '粒度'), 'annual');
+		expect(annual.disabled).toBe(false);
+		annual.click();
+		expect(onChange).toHaveBeenCalledWith({ grain: 'annual', chartType: 'bar' });
+	});
+
+	it('emits the monthly grain patch when 月度 is picked', () => {
+		const onChange = jest.fn();
+		const toolbar = toolbarFor(
+			'retail_sales_total',
+			{ ...DEFAULT_VIEW_STATE, key: 'retail_sales_total', grain: 'annual' },
+			onChange,
+			true,
+		);
+		item(segment(toolbar, '粒度'), 'monthly').click();
+		expect(onChange).toHaveBeenCalledWith({ grain: 'monthly', chartType: 'line' });
+	});
+
+	it('hides the four refinement segments in the annual grain', () => {
+		const toolbar = toolbarFor(
+			'retail_sales_total',
+			{ ...DEFAULT_VIEW_STATE, key: 'retail_sales_total', grain: 'annual', chartType: 'bar' },
+			() => {},
+			true,
+		);
+		const labels = Array.from(
+			toolbar.querySelectorAll('.mcd-toolbar__label'),
+		).map((l) => l.textContent);
+		// Only 粒度 / 模式 / 图型 remain; 变换/叠加/范围/平滑 are hidden (not grayed).
+		expect(labels).toEqual(['粒度', '模式', '图型']);
+	});
+
+	it('offers only bar/line/table chart types in the annual grain', () => {
+		const toolbar = toolbarFor(
+			'retail_sales_total',
+			{ ...DEFAULT_VIEW_STATE, key: 'retail_sales_total', grain: 'annual', chartType: 'bar' },
+			() => {},
+			true,
+		);
+		const seg = segment(toolbar, '图型');
+		expect(items(seg).map((i) => i.dataset.value)).toEqual(['bar', 'line', 'table']);
+		expect(selectedValues(seg)).toEqual(['bar']);
 	});
 });
 

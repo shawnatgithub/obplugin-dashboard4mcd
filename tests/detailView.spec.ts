@@ -35,6 +35,7 @@ const GOLDEN_NAMES = [
 	'manifest.json',
 	'capabilities.json',
 	'retail_sales_total.json',
+	'retail_sales_total_annual.json',
 	'retail_sales_total_yoy.json',
 	'money_supply_m1_yoy.json',
 	'cpi_national_yoy.json',
@@ -102,6 +103,7 @@ describe('McdDetailView — view_state round-trip (G7)', () => {
 			overlay: null,
 			range: '1y',
 			smoothing: true,
+			grain: 'monthly',
 		});
 		await view.onClose();
 	});
@@ -117,6 +119,7 @@ describe('McdDetailView — view_state round-trip (G7)', () => {
 			overlay: null,
 			range: 'all',
 			smoothing: false,
+			grain: 'monthly',
 		});
 		const content = view.contentEl;
 		expect(
@@ -149,6 +152,44 @@ describe('McdDetailView — controlled toolbar re-render', () => {
 			key: 'retail_sales_total',
 			chartType: 'table',
 		});
+		await view.onClose();
+	});
+
+	it('switches to the annual sibling series when the grain segment picks 年度', async () => {
+		const view = makeView();
+		await view.setState({ key: 'retail_sales_total' }, NO_RESULT);
+		// The grain segment offers 年度 because the manifest has the annual sibling.
+		const annualBtn = Array.from(
+			view.contentEl.querySelectorAll<HTMLButtonElement>(
+				'.mcd-segmented__item',
+			),
+		).find((b) => b.dataset.value === 'annual');
+		expect(annualBtn).toBeDefined();
+		expect(annualBtn?.disabled).toBe(false);
+		annualBtn?.click();
+		expect(view.getState()).toMatchObject({
+			key: 'retail_sales_total',
+			grain: 'annual',
+			chartType: 'bar',
+		});
+		// The rendered page now shows the annual sibling (year-total caliber).
+		const title = view.contentEl.querySelector('.mcd-header__title')?.textContent;
+		expect(title).toContain('年度总额');
+		await view.onClose();
+	});
+
+	it('hides the annual grain option when no annual sibling exists', async () => {
+		const view = makeView();
+		// cpi_national_yoy has no cpi_national_yoy_annual sibling in the manifest.
+		await view.setState({ key: 'cpi_national_yoy' }, NO_RESULT);
+		const annualBtn = Array.from(
+			view.contentEl.querySelectorAll<HTMLButtonElement>(
+				'.mcd-segmented__item',
+			),
+		).find((b) => b.dataset.value === 'annual');
+		expect(annualBtn).toBeDefined();
+		expect(annualBtn?.disabled).toBe(true);
+		expect(view.getState().grain).toBe('monthly');
 		await view.onClose();
 	});
 });

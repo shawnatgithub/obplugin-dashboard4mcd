@@ -50,6 +50,11 @@ export interface DetailProps {
 	renderChart: RenderChartFn;
 	/** Emits a view-state patch from the toolbar; the caller re-renders. */
 	onViewStateChange: (patch: Partial<ViewState>) => void;
+	/**
+	 * True when the manifest carries a `<key>_annual` sibling, enabling the 年度
+	 * grain in the toolbar (CR-2026-10-13). Defaults to false.
+	 */
+	annualAvailable?: boolean;
 	handlers?: DetailHandlers;
 }
 
@@ -187,6 +192,12 @@ function buildTable(model: DetailModel): HTMLElement | null {
 
 function sourceFootnote(model: DetailModel): string {
 	const src = model.source ? `来源：${model.source}` : '来源：本地 ETL JSON';
+	if (model.frequency === 'annual') {
+		// The annual grain shows a published year total, not a monthly derivation
+		// (CR-2026-10-13): state the 12 月累计 caliber and that unfinished years
+		// are excluded, so the reader never mistakes it for a summed mini-series.
+		return `年度总额 = 当年 1—12 月累计（12 月累计口径），${src} 经本地 ETL；未完结年份不纳入。缺失期以 null 保留，不插值、不填 0。`;
+	}
 	return `${src} · 缺失期以 null 保留，不插值、不填 0。`;
 }
 
@@ -220,6 +231,7 @@ export function renderDetail(
 			panel: model.panel,
 			view: props.view,
 			onChange: props.onViewStateChange,
+			annualAvailable: props.annualAvailable ?? false,
 		}),
 	);
 

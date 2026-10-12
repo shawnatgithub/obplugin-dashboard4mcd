@@ -161,7 +161,7 @@ describe('renderDetail — structure', () => {
 			Array.from(toolbar?.querySelectorAll('.mcd-toolbar__label') ?? []).map(
 				(l) => l.textContent,
 			),
-		).toEqual(['模式', '图型', '变换', '叠加', '范围', '平滑']);
+		).toEqual(['粒度', '模式', '图型', '变换', '叠加', '范围', '平滑']);
 	});
 });
 
@@ -300,6 +300,30 @@ describe('renderDetail — limited state (S3)', () => {
 		expect(
 			unknown.querySelector('.mcd-detail__fresh .mcd-dot.is-unknown'),
 		).not.toBeNull();
+	});
+});
+
+describe('renderDetail — annual grain footnote (CR-2026-10-13)', () => {
+	it('states the year-total caliber for an annual series', () => {
+		const root = render(
+			'retail_sales_total_annual',
+			seriesByKey.get('retail_sales_total_annual')!,
+		);
+		const footnote =
+			root.querySelector('.mcd-main > p.mcd-muted')?.textContent ?? '';
+		expect(footnote).toContain('年度总额');
+		expect(footnote).toContain('12 月累计');
+		expect(footnote).toContain('未完结年份不纳入');
+	});
+
+	it('lists the year labels verbatim in the annual table', () => {
+		const root = render(
+			'retail_sales_total_annual',
+			seriesByKey.get('retail_sales_total_annual')!,
+		);
+		const firstDate = root.querySelector('tbody tr td')?.textContent;
+		// The golden annual excerpt ends at 2025; the table is latest-first.
+		expect(firstDate).toBe('2025');
 	});
 });
 
