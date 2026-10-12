@@ -8,6 +8,9 @@ export default defineConfig(
 		'dist',
 		'esbuild.config.mjs',
 		'version-bump.mjs',
+		// 开发期工具脚本（如 L2 冒烟 scripts/smoke.mjs）自由使用 Node API，
+		// 不进插件产物，不该用 Obsidian 插件规则校验。
+		'scripts/**',
 		'jest.config.cjs',
 		'versions.json',
 		'main.js',

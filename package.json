@@ -10,7 +10,9 @@
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
 		"lint": "eslint .",
 		"test": "jest",
-		"test:watch": "jest --watch"
+		"test:watch": "jest --watch",
+		"verify": "npm run lint && npm run build && npm test",
+		"smoke": "node scripts/smoke.mjs"
 	},
 	"keywords": [],
 	"license": "0-BSD",
