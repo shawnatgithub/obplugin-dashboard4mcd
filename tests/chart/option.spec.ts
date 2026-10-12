@@ -178,3 +178,59 @@ describe('buildChartOption', () => {
 		expect(oneY.dataZoom?.[0]?.end).toBe(100);
 	});
 });
+
+describe('buildChartOption — annual grain (CR-2026-10-13)', () => {
+	function annualSeries(points: SeriesPoint[]): ChartSeries {
+		return {
+			name: '年度总额',
+			points,
+			unit: 'level_cny',
+			role: 'primary',
+			smooth: false,
+		};
+	}
+	const years = [pt('2021', 440823.2), pt('2022', 439732.5), pt('2023', 471495.2)];
+
+	interface LooseAxis {
+		data: string[];
+		axisLabel: { formatter: (value: string) => string };
+	}
+
+	it('renders year categories verbatim on the axis and defaults to bars', () => {
+		const opt = build(model({ chartType: 'bar', series: [annualSeries(years)] }));
+		const ax = opt.xAxis as LooseAxis;
+		// The categories are the bare `YYYY` dates and the axis label shows each
+		// year verbatim (never `slice(5)` → empty, which is the monthly rule).
+		expect(ax.data).toEqual(['2021', '2022', '2023']);
+		expect(ax.axisLabel.formatter('2021')).toBe('2021');
+		expect(opt.series?.[0]?.type).toBe('bar');
+	});
+
+	it('keeps a missing year as a null bar, never a zero', () => {
+		const opt = build(
+			model({
+				chartType: 'bar',
+				series: [annualSeries([pt('2021', 1), pt('2022', null)])],
+			}),
+		);
+		const data = (opt.series?.[0] as unknown as { data: Array<number | null> }).data;
+		expect(data).toEqual([1, null]);
+	});
+
+	it('marks a missing year with the 缺失 line in the annual line variant', () => {
+		const opt = build(
+			model({
+				chartType: 'line',
+				series: [annualSeries([pt('2021', 1), pt('2022', null)])],
+			}),
+		);
+		expect(opt.series?.[0]?.markLine?.data).toEqual([{ xAxis: '2022' }]);
+	});
+
+	it('leaves the monthly axis labels unchanged', () => {
+		const opt = build(model());
+		const ax = opt.xAxis as LooseAxis;
+		expect(ax.axisLabel.formatter('2026-01')).toBe('2026-01');
+		expect(ax.axisLabel.formatter('2026-02')).toBe('02');
+	});
+});

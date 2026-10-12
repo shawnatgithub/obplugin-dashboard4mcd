@@ -124,8 +124,13 @@ const RANGE_MONTHS: Record<RangeKey, number> = {
 	all: Number.POSITIVE_INFINITY,
 };
 
-/** January shows `YYYY-MM`, every other month shows `MM` (UI-UX §5). */
+/**
+ * The category-axis label. An annual point carries a bare `YYYY` date and is
+ * shown verbatim (CR-2026-10-13); a monthly `YYYY-MM` shows the full stamp in
+ * January and just `MM` otherwise (UI-UX §5).
+ */
 function xLabel(date: string): string {
+	if (!date.includes('-')) return date;
 	return date.endsWith('-01') ? date : date.slice(5);
 }
 
