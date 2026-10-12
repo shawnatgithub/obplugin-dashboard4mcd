@@ -44,7 +44,7 @@ L3 验收测试    对照工作包 DoD 与 v0.1 §8.2 清单逐项核对（截�
 ## 4. Agent 边界（硬约束，违反即停）
 
 - **不做产品决策**：遇 G/U 类事项（见开发计划 §3.2/§3.3）或 v0.1 未定义行为，停下询问用户，不得自行发明规则。
-- **不改契约**：`schemas/`、`registry/`、`tests/golden/` 的任何变更须人工确认后执行（防止 Agent 为让测试通过而改契约）。
+- **不改契约**：`schemas/`、`tests/golden/` 的任何变更须人工确认；`registry/validation_policy.yaml` 的**判据阈值**变更须人工确认。`registry/indicators.yaml` 的 `status`/`source`/`params` 允许由 `tools/apply_verdicts.py` 依据已声明判据自动回写，但必须附 provenance 且幂等；**禁止 Agent 为了让测试通过而修改判据阈值或 schema**。
 - **不越 vault**：插件代码只经 vault adapter 访问 `<Vault>/MacroData/`。
 - **不引入网络**：插件侧零网络调用（v0.1：插件只做展示）。
 - **不跳层**：L2/L3 不可跳过；不接受"单测已覆盖"作为免验理由。
