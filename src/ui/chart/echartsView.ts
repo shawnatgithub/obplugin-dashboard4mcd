@@ -52,6 +52,9 @@ echarts.use([
 /** Fixed canvas height (matches `.mcd-chart` in styles.css); width fills the host. */
 const CHART_HEIGHT = 320;
 
+/** A dual layout stacks two grids, so it needs a taller canvas to stay readable. */
+const DUAL_CHART_HEIGHT = 440;
+
 /** ECharts tags its host element with this attribute (its `DOM_ATTRIBUTE_KEY`). */
 const INSTANCE_ATTR = '_echarts_instance_';
 
@@ -79,7 +82,7 @@ export function renderChart(
 		const chart = echarts.init(container, undefined, {
 			renderer: 'canvas',
 			width: 'auto',
-			height: CHART_HEIGHT,
+			height: model.layout === 'dual' ? DUAL_CHART_HEIGHT : CHART_HEIGHT,
 		});
 		chart.setOption(option);
 		return { dispose: () => chart.dispose() };

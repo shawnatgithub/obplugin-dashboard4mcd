@@ -207,6 +207,24 @@ export function renderChartSvg(
 		clearEl(container);
 		return NOOP_CHART_HANDLE;
 	}
+	// A cross-region dual layout must never be blended on one axis (D-M3-6) and
+	// must never silently drop a region (UI-UX §6 失败不静默): draw each series as
+	// its own stacked pane, each on its own scale. ECharts renders the same split
+	// as two grids in one canvas; this is the dependency-free equivalent.
+	if (model.layout === 'dual' && model.series.length > 1) {
+		clearEl(container);
+		container.classList.add('mcd-chart', 'mcd-chart--dual');
+		model.series.forEach((s, i) => {
+			const pane = el('div', 'mcd-chart__pane');
+			renderLineChart(pane, {
+				points: s.points,
+				unit: model.yAxes[i]?.label ?? '',
+				source: model.source,
+			});
+			container.appendChild(pane);
+		});
+		return NOOP_CHART_HANDLE;
+	}
 	const primary = model.series[0];
 	renderLineChart(container, {
 		points: primary ? primary.points : [],

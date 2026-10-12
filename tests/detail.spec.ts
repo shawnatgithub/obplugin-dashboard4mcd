@@ -328,3 +328,84 @@ describe('renderDetail — controlled toolbar (M3-T4)', () => {
 		expect(onViewStateChange).toHaveBeenCalledWith({ chartType: 'table' });
 	});
 });
+
+describe('renderDetail — analysis overlays (M3-T5)', () => {
+	it('renders the mandatory amber caliber note for a spring-festival merge', () => {
+		// A Jan-present / Feb-null series triggers detectSpringFestival, so
+		// buildChartModel emits the mandatory annotation (D-M3-8) and the composer
+		// shows it as the amber note bar above the chart. The merged February stays
+		// a break in the line and a 缺失 Badge in the table — never a synthesized
+		// value (UI-UX §6, null_not_zero).
+		const sf: IndicatorSeriesV1 = {
+			schema_version: 'indicator_series_v1',
+			key: 'retail_sales_total',
+			region: 'CN',
+			frequency: 'monthly',
+			date_grain: 'month',
+			unit: 'level_cny',
+			null_policy: 'null_not_zero',
+			status: 'active',
+			series: [
+				{ date: '2012-01', value: 5, revision: 1 },
+				{ date: '2012-02', value: null, revision: 1 },
+				{ date: '2012-03', value: 2, revision: 1 },
+			],
+			quality: { last_date: '2012-03' },
+		};
+		const root = render('retail_sales_total', sf);
+		const note = root.querySelector('.mcd-note--amber');
+		expect(note).not.toBeNull();
+		expect(note?.textContent).toContain('春节');
+		expect(root.querySelector('.mcd-chart__svg')).not.toBeNull();
+	});
+
+	it('omits the note when the model carries no annotation', () => {
+		// The golden retail series has both January and February, so no
+		// spring-festival span is detected and no note bar is rendered.
+		const root = render(
+			'retail_sales_total',
+			seriesByKey.get('retail_sales_total')!,
+		);
+		expect(root.querySelector('.mcd-note--amber')).toBeNull();
+	});
+
+	it('splits a cross-region overlay into two stacked charts (dual, D-M3-6)', () => {
+		const sh = seriesByKey.get('retail_sales_sh_yoy')!;
+		const total = seriesByKey.get('retail_sales_total')!;
+		const model = toDetail('retail_sales_sh_yoy', manifest, sh, caps);
+		const view = parseViewState({
+			key: 'retail_sales_sh_yoy',
+			overlay: 'retail_sales_total',
+		});
+		const sources = new Map<string, ChartSeriesSource>([
+			[
+				'retail_sales_total',
+				{
+					points: total.series,
+					unit: total.unit,
+					title: total.title ?? 'retail_sales_total',
+				},
+			],
+		]);
+		const chart = buildChartModel(model, view, sources);
+		// Precondition: the frozen contract flags this overlay INCOMPATIBLE_REGION,
+		// which the model turns into a dual layout (never a single-axis blend).
+		expect(chart.layout).toBe('dual');
+
+		const root = document.createElement('div');
+		document.body.appendChild(root);
+		renderDetail(root, {
+			model,
+			chart,
+			view,
+			onViewStateChange: () => {},
+			renderChart: renderChartSvg,
+		});
+		// The dependency-free fallback must still draw BOTH regions as two
+		// independent charts — never blend them on one axis, never silently drop
+		// one (UI-UX §6 失败不静默).
+		expect(root.querySelector('.mcd-chart--dual')).not.toBeNull();
+		expect(root.querySelectorAll('.mcd-chart__pane')).toHaveLength(2);
+		expect(root.querySelectorAll('.mcd-chart__svg')).toHaveLength(2);
+	});
+});

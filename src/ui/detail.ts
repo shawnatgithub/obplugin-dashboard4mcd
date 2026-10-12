@@ -213,9 +213,21 @@ export function renderDetail(
 		}),
 	);
 
+	// The spring-festival / caliber annotation is a mandatory amber note bar
+	// (spec §5/§7, D-M3-8): the chart's markArea highlights the merge and this
+	// states the caliber in words. It explains a merge; it never fabricates one.
+	if (props.chart.annotation) {
+		main.appendChild(
+			el('div', 'mcd-note mcd-note--amber', props.chart.annotation),
+		);
+	}
+
 	// The chart host is a bare figure; the injected renderer owns its classes and
-	// its empty/fallback states, so S3 (limited) needs no branch here either.
+	// its empty/fallback states, so S3 (limited) needs no branch here either. A
+	// cross-region dual layout is marked so the renderer (and CSS) split it into
+	// two independently-scaled charts instead of blending them on one axis.
 	const chartHost = el('figure');
+	if (props.chart.layout === 'dual') chartHost.classList.add('mcd-chart--dual');
 	main.appendChild(chartHost);
 
 	const table = buildTable(model);

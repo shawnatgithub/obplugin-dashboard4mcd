@@ -665,6 +665,11 @@
 	font-size: var(--mcd-fs-caption);
 }
 
+/* 春节合并口径说明条（spec §7 强制浅琥珀注释条）：在基础说明条上加左侧琥珀强调边 */
+.mcd-note--amber {
+	border-left: 3px solid var(--mcd-amber);
+}
+
 /* 兜底态横幅：全部视图选项不可用 */
 .mcd-banner {
 	display: flex;
@@ -747,6 +752,17 @@
 /* M3 详情页主图（ECharts，G6）：canvas 块级消除基线间隙；容器高度由 .mcd-chart 固定为 320px */
 .mcd-chart--echarts canvas {
 	display: block;
+}
+
+/* 跨 region 拆分双图（D-M3-6）：两张各自刻度的子图上下并列，绝不单轴混叠。
+   高度自适应（覆盖 .mcd-chart 的固定 320px），容纳 ECharts 双 grid 或 SVG 兜底双 pane。 */
+.mcd-chart--dual {
+	height: auto;
+}
+
+/* SVG 兜底双图：两张子图之间的垂直间距 */
+.mcd-chart__pane + .mcd-chart__pane {
+	margin-top: var(--mcd-sp-3);
 }
 
 .mcd-chart__svg {
