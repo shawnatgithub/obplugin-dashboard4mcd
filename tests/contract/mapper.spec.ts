@@ -4,6 +4,7 @@ import {
 	collapseRevisions,
 	formatTimestamp,
 	formatValue,
+	frequencyLabel,
 	hashSeed,
 	regionLabel,
 	resolveOverview,
@@ -106,6 +107,9 @@ describe('mapper helpers', () => {
 		expect(unitLabel('unknown')).toBe('');
 		expect(regionLabel('CN')).toBe('全国趋势');
 		expect(regionLabel('SH')).toBe('地方：上海');
+		expect(frequencyLabel('monthly')).toBe('月度');
+		expect(frequencyLabel('quarterly')).toBe('季度');
+		expect(frequencyLabel('daily')).toBe('日度');
 	});
 
 	it('formatTimestamp 保留日期与时分，无时间时仅日期', () => {
@@ -230,6 +234,8 @@ describe('toDetail', () => {
 		expect(d.freshness).toBe('fresh');
 		expect(d.lastDate).toBe('2026-09');
 		expect(d.source).toBe('akshare_eastmoney');
+		expect(d.updatedAt).toBe('2026-10-11 08:00');
+		expect(d.fileName).toBe('retail_sales_total_yoy.json');
 		expect(d.points).toHaveLength(5);
 		expect(d.statusBanner).toBeNull();
 		expect(d.panel && isStub(d.panel)).toBe(false);
@@ -259,6 +265,10 @@ describe('toDetail', () => {
 		const d = toDetail('retail_sales_total', manifest, null, caps);
 		expect(d.points).toHaveLength(0);
 		expect(d.title).toBe('retail_sales_total');
+		// No series: the update time falls back to the manifest, the file name
+		// still comes from the manifest row (§6 双时间戳 stays honest).
+		expect(d.updatedAt).toBe('2026-10-11 08:00');
+		expect(d.fileName).toBe('retail_sales_total.json');
 		expect(d.statusBanner).toBe('未找到该指标的序列数据（文件缺失或尚未生成）');
 	});
 

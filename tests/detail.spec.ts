@@ -1,0 +1,250 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { formatValue, toDetail } from '../src/contract/mapper';
+import {
+	parseCapabilities,
+	parseManifest,
+	parseSeries,
+} from '../src/contract/parse';
+import { reasonText } from '../src/contract/reasonText';
+import type {
+	CapabilitiesV1,
+	IndicatorSeriesV1,
+	ManifestV1,
+} from '../src/contract/types';
+import { EMPTY_CHART_TEXT } from '../src/ui/chartView';
+import { renderDetail } from '../src/ui/detail';
+import type { DetailHandlers } from '../src/ui/detail';
+
+/**
+ * Detail-page DOM tests (T3-4). The model is built from the frozen golden
+ * fixtures via the real mapper, so every asserted string is a byte the pipeline
+ * emits. These lock the S2 structure, the §6 honesty rules (double timestamp,
+ * a missing cell is a「缺失」Badge and never 0), and the S3 limited state
+ * (banner + wireframe, no throw).
+ */
+
+const GOLDEN = path.resolve(
+	__dirname,
+	'..',
+	'tests',
+	'golden',
+	'contract',
+	'processed',
+);
+
+function readJson(name: string): unknown {
+	return JSON.parse(readFileSync(path.join(GOLDEN, name), 'utf8'));
+}
+
+function loadGolden(): {
+	manifest: ManifestV1;
+	caps: CapabilitiesV1;
+	seriesByKey: Map<string, IndicatorSeriesV1>;
+} {
+	const m = parseOrFail(readJson('manifest.json'));
+	const c = parseCaps(readJson('capabilities.json'));
+	const seriesByKey = new Map<string, IndicatorSeriesV1>();
+	for (const ind of m.indicators) {
+		seriesByKey.set(ind.key, parseSeriesOrFail(readJson(ind.file)));
+	}
+	return { manifest: m, caps: c, seriesByKey };
+}
+
+// Small wrappers so the golden loader stays readable (parse* are total).
+function parseOrFail(json: unknown): ManifestV1 {
+	const r = parseManifest(json);
+	if (!r.ok) throw new Error('manifest parse failed');
+	return r.value;
+}
+function parseCaps(json: unknown): CapabilitiesV1 {
+	const r = parseCapabilities(json);
+	if (!r.ok) throw new Error('capabilities parse failed');
+	return r.value;
+}
+function parseSeriesOrFail(json: unknown): IndicatorSeriesV1 {
+	const r = parseSeries(json);
+	if (!r.ok) throw new Error('series parse failed');
+	return r.value;
+}
+
+const { manifest, caps, seriesByKey } = loadGolden();
+
+function render(
+	key: string,
+	series: IndicatorSeriesV1 | null,
+	handlers: DetailHandlers = {},
+): HTMLElement {
+	const model = toDetail(key, manifest, series, caps);
+	const root = document.createElement('div');
+	document.body.appendChild(root);
+	renderDetail(root, { model, handlers });
+	return root;
+}
+
+afterEach(() => {
+	document.body.textContent = '';
+});
+
+describe('renderDetail — structure', () => {
+	const root = render(
+		'retail_sales_total_yoy',
+		seriesByKey.get('retail_sales_total_yoy')!,
+	);
+
+	it('lays out the scoped root, header and narrow main', () => {
+		expect(root.querySelector('.mcd-root.mcd-view')).not.toBeNull();
+		expect(root.querySelector('.mcd-main--narrow')).not.toBeNull();
+	});
+
+	it('renders the header with back, title, crumb and both actions', () => {
+		expect(root.querySelector('.mcd-header__title')?.textContent).toBe(
+			'全国社会消费品零售总额当月同比',
+		);
+		expect(root.querySelector('.mcd-header__crumb')?.textContent).toBe(
+			'指标详情',
+		);
+		expect(root.querySelectorAll('.mcd-icon-button')).toHaveLength(2);
+		expect(root.querySelector('.mcd-button')?.textContent).toBe('设置');
+	});
+
+	it('renders the freshness dot plus region/frequency/unit chips', () => {
+		const meta = root.querySelector('.mcd-detail__meta');
+		expect(meta?.querySelector('.mcd-dot.is-fresh')).not.toBeNull();
+		expect(meta?.querySelector('.mcd-detail__fresh')?.textContent).toBe('最新');
+		const chips = Array.from(
+			meta?.querySelectorAll('.mcd-detail__chip') ?? [],
+		).map((c) => c.textContent);
+		expect(chips).toEqual(['全国趋势', '月度', '单位 %']);
+	});
+
+	it('shows the double timestamp: period · update · file (§6)', () => {
+		const stamp = root.querySelector('.mcd-detail__stamp')?.textContent ?? '';
+		expect(stamp).toContain('数据截至 2026-09');
+		expect(stamp).toContain('更新于 2026-10-11 08:00');
+		expect(stamp).toContain('retail_sales_total_yoy.json');
+	});
+
+	it('draws the main chart and a source footnote', () => {
+		expect(root.querySelector('.mcd-chart__svg')).not.toBeNull();
+		expect(root.querySelector('.mcd-main > p.mcd-muted')?.textContent).toContain(
+			'来源：akshare_eastmoney',
+		);
+	});
+});
+
+describe('renderDetail — header actions', () => {
+	it('fires onBack, onRefresh and onOpenSettings', () => {
+		const onBack = jest.fn();
+		const onRefresh = jest.fn();
+		const onOpenSettings = jest.fn();
+		const root = render(
+			'retail_sales_total_yoy',
+			seriesByKey.get('retail_sales_total_yoy')!,
+			{ onBack, onRefresh, onOpenSettings },
+		);
+		const icons = root.querySelectorAll<HTMLElement>('.mcd-icon-button');
+		icons[0]?.click();
+		icons[1]?.click();
+		root.querySelector<HTMLElement>('.mcd-button')?.click();
+		expect(onBack).toHaveBeenCalledTimes(1);
+		expect(onRefresh).toHaveBeenCalledTimes(1);
+		expect(onOpenSettings).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe('renderDetail — data table honesty', () => {
+	const key = 'retail_sales_total';
+	const model = toDetail(key, manifest, seriesByKey.get(key)!, caps);
+	const root = render(key, seriesByKey.get(key)!);
+	const rows = Array.from(root.querySelectorAll('tbody tr'));
+	const latestFirst = [...model.points].reverse();
+
+	it('labels the value column with its unit', () => {
+		const heads = Array.from(root.querySelectorAll('thead th')).map(
+			(t) => t.textContent,
+		);
+		expect(heads).toEqual(['期', '值（亿元）', '修订']);
+	});
+
+	it('lists every period, latest first, matching the model', () => {
+		expect(rows).toHaveLength(model.points.length);
+		rows.forEach((tr, i) => {
+			const tds = tr.querySelectorAll('td');
+			const point = latestFirst[i]!;
+			expect(tds[0]?.textContent).toBe(point.date);
+			expect(tds[2]?.textContent).toBe(String(point.revision));
+		});
+	});
+
+	it('renders a 缺失 Badge for a null and never a zero', () => {
+		let missing = 0;
+		rows.forEach((tr, i) => {
+			const point = latestFirst[i]!;
+			const valueCell = tr.querySelectorAll('td')[1]!;
+			if (point.value === null) {
+				missing += 1;
+				expect(valueCell.querySelector('.mcd-badge')?.textContent).toBe(
+					'缺失',
+				);
+				expect(valueCell.textContent).not.toContain('0');
+			} else {
+				expect(valueCell.textContent).toBe(
+					formatValue(point.value, model.unit),
+				);
+			}
+		});
+		expect(missing).toBe(2); // 2026-06 and 2026-07
+	});
+
+	it('shows the latest level as an integer without a trailing .0', () => {
+		expect(rows[0]?.querySelectorAll('td')[1]?.textContent).toBe('44100');
+	});
+});
+
+describe('renderDetail — limited state (S3)', () => {
+	it('missing series: banner + wireframe chart, no table, no throw', () => {
+		const root = render('retail_sales_total', null);
+		expect(root.querySelector('.mcd-banner')?.textContent).toContain(
+			'未找到该指标的序列数据',
+		);
+		expect(root.querySelector('.mcd-chart__svg')).toBeNull();
+		expect(root.querySelector('.mcd-chart__empty')?.textContent).toBe(
+			EMPTY_CHART_TEXT,
+		);
+		expect(root.querySelector('tbody')).toBeNull();
+	});
+
+	it('stub source: the banner carries the reason_code copy', () => {
+		const stub: IndicatorSeriesV1 = {
+			schema_version: 'indicator_series_v1',
+			key: 'shanghai_finance_quarterly',
+			region: 'SH',
+			frequency: 'quarterly',
+			date_grain: 'quarter',
+			unit: 'yoy_pct',
+			null_policy: 'null_not_zero',
+			status: 'active',
+			series: [{ date: '2026-Q2', value: 1.0, revision: 1 }],
+			quality: { last_date: '2026-Q2' },
+		};
+		const root = render('shanghai_finance_quarterly', stub);
+		expect(root.querySelector('.mcd-banner')?.textContent).toContain(
+			reasonText('SOURCE_UNSUPPORTED'),
+		);
+	});
+
+	it('reflects the freshness state on the dot (stale / unknown)', () => {
+		const stale = render('cpi_national_yoy', seriesByKey.get('cpi_national_yoy')!);
+		expect(
+			stale.querySelector('.mcd-detail__fresh .mcd-dot.is-stale'),
+		).not.toBeNull();
+		const unknown = render(
+			'disposable_income_yoy',
+			seriesByKey.get('disposable_income_yoy')!,
+		);
+		expect(
+			unknown.querySelector('.mcd-detail__fresh .mcd-dot.is-unknown'),
+		).not.toBeNull();
+	});
+});

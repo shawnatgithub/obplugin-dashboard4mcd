@@ -60,6 +60,17 @@ export function unitLabel(unit: Unit): string {
 	return UNIT_LABEL[unit];
 }
 
+const FREQUENCY_LABEL: Record<Frequency, string> = {
+	monthly: '月度',
+	quarterly: '季度',
+	daily: '日度',
+};
+
+/** Human label for a collection frequency (`Record` so a new one fails build). */
+export function frequencyLabel(frequency: Frequency): string {
+	return FREQUENCY_LABEL[frequency];
+}
+
 /**
  * Format a value for a card/detail heading. `null` → `—` (never `0`). Rates
  * keep one decimal; a whole level is shown without a trailing `.0`.
@@ -149,6 +160,10 @@ export interface DetailModel {
 	frequency: Frequency;
 	freshness: Freshness;
 	lastDate: string | null;
+	/** Formatted ETL update time for this series, or null when unknown (§6 双时间戳). */
+	updatedAt: string | null;
+	/** Source file name under `processed/`, or null when absent from the manifest. */
+	fileName: string | null;
 	/** Present only when the series declares a source. */
 	source?: string;
 	/** Revision-collapsed points, one per period, for the table/chart. */
@@ -257,6 +272,7 @@ export function toDetail(
 	const ind = manifest.indicators.find((i) => i.key === key) ?? null;
 	const panel = caps?.panels[key] ?? null;
 	const points = series ? collapseRevisions(series.series) : [];
+	const generatedAt = series?.generated_at ?? manifest.generated_at ?? null;
 
 	let statusBanner: string | null = null;
 	if (!series) statusBanner = '未找到该指标的序列数据（文件缺失或尚未生成）';
@@ -274,6 +290,8 @@ export function toDetail(
 		frequency: ind?.frequency ?? series?.frequency ?? 'monthly',
 		freshness: ind?.freshness ?? 'unknown',
 		lastDate: ind?.last_date ?? series?.quality.last_date ?? null,
+		updatedAt: generatedAt ? formatTimestamp(generatedAt) : null,
+		fileName: ind?.file ?? null,
 		points,
 		panel,
 		statusBanner,
