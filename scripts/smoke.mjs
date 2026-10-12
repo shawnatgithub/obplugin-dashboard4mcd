@@ -23,7 +23,7 @@
  *   --screenshot 额外把窗口截图落到 artifacts/smoke.png（尽力而为，不判负）。
  */
 import { spawnSync } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -62,6 +62,29 @@ function evalJs(code) {
 }
 
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+
+/**
+ * Read the real annual point count straight from the vault product, so the
+ * annual-grain assertions compare the rendered year rows against the source of
+ * truth (数据诚实). Best-effort: returns null when the file is absent/unreadable,
+ * and the caller then falls back to the DOM-only structural checks.
+ */
+function readAnnualCount() {
+	try {
+		const vaultRoot = path.resolve(REPO_ROOT, '..', '..', '..');
+		const file = path.join(
+			vaultRoot,
+			DATA_DIR,
+			'processed',
+			`${DETAIL_KEY}_annual.json`,
+		);
+		if (!existsSync(file)) return null;
+		const json = JSON.parse(readFileSync(file, 'utf8'));
+		return Array.isArray(json.series) ? json.series.length : null;
+	} catch {
+		return null;
+	}
+}
 
 // 0. CLI 可达性（需要 Obsidian 已打开本 vault）
 const ping = run(['plugins:enabled']);
@@ -225,6 +248,93 @@ try {
 	rtOk = false;
 }
 record('view_state 全字段 setState→getState 往返', rtOk, `state=${rtRaw.value}`);
+
+// ---- 年度粒度（CR-2026-10-13：年度趋势只体现年度总额，不再按年迷你折线）----
+// 详情粒度段的「年度」切到 manifest 的 `<key>_annual` 兄弟（12 月累计官方年总额）：
+// 数据表变为年份行、脚注声明年度总额口径、切回「月度」行数复原（209 不变）。
+
+// 7f-0. 先把详情恢复到干净的月度默认视角（7e 留下了 calendar/yoy/3y/smoothing）。
+evalJs(
+	`(function(){var l=app.workspace.getLeavesOfType('${DETAIL_VIEW_TYPE}')[0];if(!l)return 'no-leaf';l.view.setState({key:'${DETAIL_KEY}'},{history:false});return 'ok';})()`,
+);
+await sleep(500);
+const monthlyRowsBefore = Number(bodyRows().value);
+record(
+	'年度段前置：月度详情行数复原',
+	monthlyRowsBefore === baseRows,
+	`rows=${monthlyRowsBefore} base=${baseRows}`,
+);
+
+// 7f-1. 年度兄弟存在 → 粒度段「年度」可点；不存在则本段诚实跳过（不虚构年度序列）。
+const annualBtn = evalJs(
+	`(function(){var l=app.workspace.getLeavesOfType('${DETAIL_VIEW_TYPE}')[0];if(!l)return 'no-leaf';var b=l.view.contentEl.querySelector('.mcd-segmented__item[data-value="annual"]');return b?String(!b.disabled):'no-btn';})()`,
+);
+const annualAvailable = annualBtn.value === 'true';
+record('粒度段「年度」在有年度兄弟时可用', annualAvailable, `annualBtn=${annualBtn.value}`);
+
+if (annualAvailable) {
+	const annualCount = readAnnualCount();
+
+	// 7f-2. 点「年度」：切到年度兄弟序列，grain 状态生效。
+	evalJs(
+		`(function(){var l=app.workspace.getLeavesOfType('${DETAIL_VIEW_TYPE}')[0];if(!l)return 'no-leaf';var b=l.view.contentEl.querySelector('.mcd-segmented__item[data-value="annual"]');if(!b)return 'no-btn';b.click();return 'clicked';})()`,
+	);
+	await sleep(600);
+	const grainState = evalJs(
+		`(function(){var l=app.workspace.getLeavesOfType('${DETAIL_VIEW_TYPE}')[0];return l?l.view.getState().grain:'?';})()`,
+	);
+	record('切「年度」：grain 状态生效', grainState.value === 'annual', `grain=${grainState.value}`);
+
+	// 7f-3. 主图仍以柱状画出（ECharts canvas 或 SVG 兜底），非空。
+	const annualChart = hasChart();
+	record(
+		'切「年度」：主图渲染（年度柱状）',
+		annualChart.value === 'true',
+		`chart=${annualChart.value}`,
+	);
+
+	// 7f-4. 数据表变为年份行：每行「期」列是 4 位年份（YYYY），而非 YYYY-MM。
+	const annualRows = Number(bodyRows().value);
+	const yearLabels = evalJs(
+		`(function(){var l=app.workspace.getLeavesOfType('${DETAIL_VIEW_TYPE}')[0];if(!l)return '';var tds=l.view.contentEl.querySelectorAll('tbody tr td:first-child');return Array.prototype.map.call(tds,function(t){return t.textContent;}).join(',');})()`,
+	);
+	const labels = yearLabels.value.split(',').filter(Boolean);
+	const allYears = labels.length >= 1 && labels.every((s) => /^\d{4}$/.test(s));
+	record(
+		'切「年度」：数据表全为年份行（YYYY）',
+		allYears,
+		`rows=${annualRows} labels=${yearLabels.value.slice(0, 60)}`,
+	);
+	if (annualCount !== null) {
+		record(
+			'切「年度」：年份行数 = vault 真实年度点数',
+			annualRows === annualCount,
+			`rows=${annualRows} expected=${annualCount}`,
+		);
+	}
+
+	// 7f-5. 脚注声明年度总额（12 月累计）口径，杜绝把年度当作按月迷你折线误读。
+	const footnote = evalJs(
+		`(function(){var l=app.workspace.getLeavesOfType('${DETAIL_VIEW_TYPE}')[0];if(!l)return '';var p=l.view.contentEl.querySelector('.mcd-main > p.mcd-muted');return p?p.textContent:'';})()`,
+	);
+	record(
+		'切「年度」：脚注含「年度总额」口径',
+		footnote.value.includes('年度总额'),
+		`footnote=${footnote.value.slice(0, 60)}`,
+	);
+
+	// 7f-6. 切回「月度」：数据表恢复月度行数（209 不变），证明粒度切换不损底层数据。
+	evalJs(
+		`(function(){var l=app.workspace.getLeavesOfType('${DETAIL_VIEW_TYPE}')[0];if(!l)return 'no-leaf';var b=l.view.contentEl.querySelector('.mcd-segmented__item[data-value="monthly"]');if(!b)return 'no-btn';b.click();return 'clicked';})()`,
+	);
+	await sleep(600);
+	const backRows = Number(bodyRows().value);
+	record(
+		'切回「月度」：数据行数复原',
+		backRows === baseRows,
+		`rows=${backRows} base=${baseRows}`,
+	);
+}
 
 // 8. 真实数据渲染后控制台仍无错误
 const errs2 = run(['dev:errors']);
