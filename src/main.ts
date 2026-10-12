@@ -2,16 +2,20 @@ import { Notice, Plugin } from 'obsidian';
 import type { WorkspaceLeaf } from 'obsidian';
 import {
 	COMMAND_OPEN_OVERVIEW,
+	COMMAND_OPEN_RELEASE,
 	PLUGIN_ID,
+	RELEASE_VIEW_TITLE,
 	RIBBON_TOOLTIP,
 	VIEW_ICON,
 	VIEW_TYPE_MCD_DETAIL,
 	VIEW_TYPE_MCD_OVERVIEW,
+	VIEW_TYPE_MCD_RELEASE,
 } from './constants';
 import { mergeSettings } from './logic';
 import { DEFAULT_SETTINGS, McdSettings, McdSettingTab } from './settings';
 import { McdDetailView } from './ui/detailView';
 import { McdOverviewView } from './ui/overviewView';
+import { McdReleaseView } from './ui/releaseView';
 
 /** Minimal shape of Obsidian's settings API used to jump straight to our tab. */
 interface AppSettingsApi {
@@ -34,6 +38,11 @@ export default class McdPlugin extends Plugin {
 			(leaf: WorkspaceLeaf) => new McdDetailView(leaf, this),
 		);
 
+		this.registerView(
+			VIEW_TYPE_MCD_RELEASE,
+			(leaf: WorkspaceLeaf) => new McdReleaseView(leaf, this),
+		);
+
 		this.addRibbonIcon(VIEW_ICON, RIBBON_TOOLTIP, () => {
 			void this.activateDefaultView();
 		});
@@ -43,6 +52,14 @@ export default class McdPlugin extends Plugin {
 			name: RIBBON_TOOLTIP,
 			callback: () => {
 				void this.activateDefaultView();
+			},
+		});
+
+		this.addCommand({
+			id: COMMAND_OPEN_RELEASE,
+			name: RELEASE_VIEW_TITLE,
+			callback: () => {
+				void this.activateRelease();
 			},
 		});
 
@@ -59,6 +76,20 @@ export default class McdPlugin extends Plugin {
 		if (!existing) {
 			await leaf.setViewState({
 				type: VIEW_TYPE_MCD_OVERVIEW,
+				active: true,
+			});
+		}
+		await workspace.revealLeaf(leaf);
+	}
+
+	/** Reveal the release calendar, opening a new tab only if none exists. */
+	async activateRelease(): Promise<void> {
+		const { workspace } = this.app;
+		const existing = workspace.getLeavesOfType(VIEW_TYPE_MCD_RELEASE)[0];
+		const leaf = existing ?? workspace.getLeaf(true);
+		if (!existing) {
+			await leaf.setViewState({
+				type: VIEW_TYPE_MCD_RELEASE,
 				active: true,
 			});
 		}

@@ -109,6 +109,9 @@ export class McdOverviewView extends ItemView {
 				onOpenSettings: () => {
 					this.plugin.openSettings();
 				},
+				onOpenRelease: () => {
+					void this.plugin.activateRelease();
+				},
 			},
 		});
 		if (notify) {

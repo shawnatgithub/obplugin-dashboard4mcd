@@ -29,3 +29,15 @@ export const RIBBON_TOOLTIP = '打开宏观数据看板';
 
 /** Command id that opens the overview dashboard. Stable once released. */
 export const COMMAND_OPEN_OVERVIEW = 'open-overview';
+
+/** Workspace view type registered for the release-calendar / status view. */
+export const VIEW_TYPE_MCD_RELEASE = 'mcd-release-view';
+
+/** Tab title and command-palette name for the release-calendar view. */
+export const RELEASE_VIEW_TITLE = '发布日历与采集状态';
+
+/** Ribbon / tab icon for the release-calendar view (Lucide `calendar`). */
+export const RELEASE_VIEW_ICON = 'calendar';
+
+/** Command id that opens the release calendar. Stable once released. */
+export const COMMAND_OPEN_RELEASE = 'open-release-calendar';

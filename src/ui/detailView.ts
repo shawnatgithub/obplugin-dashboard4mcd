@@ -190,6 +190,9 @@ export class McdDetailView extends ItemView {
 					void this.refresh();
 				},
 				onOpenSettings: () => this.plugin.openSettings(),
+				onOpenRelease: () => {
+					void this.plugin.activateRelease();
+				},
 			},
 		});
 	}

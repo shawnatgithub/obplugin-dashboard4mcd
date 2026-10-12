@@ -597,6 +597,33 @@
 	outline: 1px solid var(--mcd-accent);
 }
 
+/* 头部导航入口（发布日历）：比 .mcd-button 更轻，作为页内跳转而非主操作 */
+.mcd-nav {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--mcd-sp-1);
+	height: var(--mcd-h-control);
+	padding: 0 var(--mcd-sp-3);
+	border: 1px solid transparent;
+	border-radius: var(--mcd-radius-control);
+	background: transparent;
+	color: var(--mcd-muted);
+	font-size: var(--mcd-fs-body);
+	cursor: pointer;
+	transition: border-color 0.12s ease, color 0.12s ease, background 0.12s ease;
+}
+
+.mcd-nav:hover {
+	border-color: var(--mcd-stroke);
+	background: var(--mcd-hover);
+	color: var(--mcd-text);
+}
+
+.mcd-nav:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 1px var(--mcd-accent);
+}
+
 /* 叠加已选项 chip */
 .mcd-chip {
 	display: inline-flex;

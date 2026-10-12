@@ -21,6 +21,8 @@ export interface OverviewHandlers {
 	onRefresh?: () => void;
 	/** Jump to the plugin settings tab. */
 	onOpenSettings?: () => void;
+	/** Open the release-calendar / collection-status view. */
+	onOpenRelease?: () => void;
 	/** Selection changed; receives the resolved selection (null = none). */
 	onSelect?: (selected: string | null) => void;
 	/** A real card was activated; receives its contract key to open detail. */
@@ -45,6 +47,13 @@ function buildHeader(
 	header.appendChild(el('h1', 'mcd-header__title', meta.title));
 	header.appendChild(el('span', 'mcd-header__crumb', meta.crumb));
 	header.appendChild(el('span', 'mcd-header__meta', meta.updatedAt));
+
+	const release = el('button', 'mcd-nav', '发布日历');
+	release.type = 'button';
+	release.setAttribute('aria-label', '发布日历与采集状态');
+	release.title = '打开发布日历与采集状态';
+	release.addEventListener('click', () => handlers.onOpenRelease?.());
+	header.appendChild(release);
 
 	const refresh = el('button', 'mcd-icon-button');
 	refresh.type = 'button';

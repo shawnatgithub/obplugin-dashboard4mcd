@@ -36,6 +36,8 @@ export interface DetailHandlers {
 	onRefresh?: () => void;
 	/** Jump to the plugin settings tab. */
 	onOpenSettings?: () => void;
+	/** Open the release-calendar / collection-status view. */
+	onOpenRelease?: () => void;
 }
 
 export interface DetailProps {
@@ -88,6 +90,14 @@ function buildHeader(model: DetailModel, handlers: DetailHandlers): HTMLElement 
 	header.appendChild(el('h1', 'mcd-header__title', model.title));
 	header.appendChild(el('span', 'mcd-header__crumb', '指标详情'));
 	header.appendChild(el('span', 'mcd-header__spacer'));
+
+	const release = el('button', 'mcd-nav', '发布日历');
+	release.type = 'button';
+	release.setAttribute('aria-label', '发布日历与采集状态');
+	release.title = '打开发布日历与采集状态';
+	release.addEventListener('click', () => handlers.onOpenRelease?.());
+	header.appendChild(release);
+
 	header.appendChild(
 		iconButton('刷新', REFRESH_ICON_PATH, () => handlers.onRefresh?.()),
 	);

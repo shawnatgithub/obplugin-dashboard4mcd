@@ -203,6 +203,15 @@ describe('renderOverview — header actions', () => {
 		root.querySelector<HTMLElement>('.mcd-button')?.click();
 		expect(onOpenSettings).toHaveBeenCalledTimes(1);
 	});
+
+	it('fires onOpenRelease from the header nav entry', () => {
+		const onOpenRelease = jest.fn();
+		const root = render({ handlers: { onOpenRelease } });
+		const nav = root.querySelector<HTMLElement>('.mcd-nav');
+		expect(nav?.textContent).toBe('发布日历');
+		nav?.click();
+		expect(onOpenRelease).toHaveBeenCalledTimes(1);
+	});
 });
 
 describe('renderOverview — empty state', () => {
