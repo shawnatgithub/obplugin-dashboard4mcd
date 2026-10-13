@@ -18,7 +18,7 @@ export type Region = 'CN' | 'SH' | 'SC' | 'CD';
 export type Frequency = 'monthly' | 'quarterly' | 'daily' | 'annual';
 
 /** Measurement unit. G18: a base key stores its level; `<key>_yoy` stores a ratio. */
-export type Unit = 'yoy_pct' | 'mom_pct' | 'index_2020_100' | 'level_cny' | 'unknown';
+export type Unit = 'yoy_pct' | 'mom_pct' | 'index_2020_100' | 'level_cny' | 'pct' | 'unknown';
 
 /** Lifecycle state. G19: the first frozen batch is all `planned`. */
 export type Status = 'active' | 'planned' | 'paused';

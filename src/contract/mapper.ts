@@ -143,6 +143,9 @@ const UNIT_LABEL: Record<Unit, string> = {
 	mom_pct: '%',
 	level_cny: '亿元',
 	index_2020_100: '',
+	// A percentage-point magnitude (e.g. the M1−M2 scissors spread), distinct
+	// from a yoy/mom ratio; rendered with the same `pct` suffix as pp deltas.
+	pct: 'pct',
 	unknown: '',
 };
 
