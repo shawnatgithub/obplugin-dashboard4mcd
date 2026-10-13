@@ -21,7 +21,8 @@
  */
 
 import { freshnessLabel } from '../format';
-import { formatTimestamp } from './mapper';
+import type { OverviewStatus, StatusItem } from '../types';
+import { STATUS_BADGE, formatTimestamp, summarizeStatus } from './mapper';
 import type {
 	Frequency,
 	IndicatorSeriesV1,
@@ -227,6 +228,27 @@ function toMarker(
 		nextMonth: monthAnchor(next),
 		tone: ind.freshness,
 	};
+}
+
+/**
+ * Fold the release model's rows into the overview's collapsible 数据状态 panel.
+ * A row that is overdue or approaching its next release shows the honest
+ * `预计 <period>` estimate; a fresh row shows its data-as-of date instead. No
+ * runtime scheduling state is invented (spec §2 boundary), and the legend
+ * counts come from the same freshness tones the calendar uses.
+ */
+export function toOverviewStatus(model: ReleaseModel): OverviewStatus {
+	const items: StatusItem[] = model.rows.map((row) => ({
+		key: row.key,
+		metric: row.metric,
+		tone: row.tone,
+		badge: STATUS_BADGE[row.tone],
+		detail:
+			row.tone === 'stale' || row.tone === 'aging'
+				? row.nextExpected
+				: row.lastDate,
+	}));
+	return summarizeStatus(items);
 }
 
 /**

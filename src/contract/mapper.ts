@@ -15,7 +15,16 @@
 
 import { OVERVIEW_GROUPS, OVERVIEW_META, type OverviewMeta } from '../data/overview';
 import { SPARK_POINTS, sparkGaps } from '../sparkline';
-import type { Delta, MetricCard, MetricGroup } from '../types';
+import type {
+	CategoryDef,
+	Delta,
+	Fresh,
+	MetricCard,
+	MetricCategory,
+	MetricGroup,
+	OverviewStatus,
+	StatusItem,
+} from '../types';
 import type { LoadResult } from './loader';
 import { isStub, reasonText } from './reasonText';
 import type {
@@ -34,6 +43,93 @@ import type {
 
 /** Stable group order: national first, then the local scopes. */
 export const REGION_ORDER: Region[] = ['CN', 'SH', 'SC', 'CD'];
+
+/** Chip order after 全部 (prototype 全局原型: 消费 / 价格 / 货币). */
+const CATEGORY_ORDER: MetricCategory[] = ['消费', '价格', '货币'];
+
+/** Freshness → the 数据状态 legend label (最新 / 临近更新 / 已过期). */
+export const STATUS_BADGE: Record<Fresh, string> = {
+	fresh: '最新',
+	aging: '临近更新',
+	stale: '已过期',
+	unknown: '最新',
+};
+
+/**
+ * Classify a card into a filter category. Real cards carry a contract key
+ * (`cpi*` → 价格, `money*`/`m0|m1|m2*` → 货币, else 消费); bundled sample cards
+ * have no key, so the display name is the honest fallback. Never guesses a
+ * category the data does not support — the default is 消费.
+ */
+export function categoryOf(key?: string, name?: string): MetricCategory {
+	const k = (key ?? '').toLowerCase();
+	const n = name ?? '';
+	if (k.startsWith('cpi') || n.includes('CPI')) return '价格';
+	if (
+		k.startsWith('money') ||
+		/^m[012]/.test(k) ||
+		n.includes('M1') ||
+		n.includes('M2') ||
+		n.includes('剪刀差')
+	) {
+		return '货币';
+	}
+	return '消费';
+}
+
+/**
+ * Build the filter chips from a set of cards: 全部 (spanning every card) plus
+ * one chip per category that is actually present, in `CATEGORY_ORDER`. A
+ * category with no cards is omitted rather than shown empty (no dead chips).
+ */
+export function categoryDefs(cards: readonly MetricCard[]): CategoryDef[] {
+	const counts = new Map<MetricCategory, number>();
+	for (const card of cards) {
+		const cat = card.category ?? '消费';
+		counts.set(cat, (counts.get(cat) ?? 0) + 1);
+	}
+	const defs: CategoryDef[] = [
+		{ id: '全部', label: '全部', count: cards.length },
+	];
+	for (const cat of CATEGORY_ORDER) {
+		const n = counts.get(cat) ?? 0;
+		if (n > 0) defs.push({ id: cat, label: cat, count: n });
+	}
+	return defs;
+}
+
+/** Tally the three legend counts from status rows (stale / aging / rest). */
+export function summarizeStatus(items: StatusItem[]): OverviewStatus {
+	let latest = 0;
+	let upcoming = 0;
+	let overdue = 0;
+	for (const it of items) {
+		if (it.tone === 'stale') overdue++;
+		else if (it.tone === 'aging') upcoming++;
+		else latest++;
+	}
+	return { items, latest, upcoming, overdue };
+}
+
+/**
+ * Derive a 数据状态 panel from cards (the bundled-sample fallback path, which
+ * has no manifest to compute 预计 dates from). Only real, key-bearing cards are
+ * listed; the detail shows the card's own data period, never a guessed date.
+ */
+export function statusFromCards(cards: readonly MetricCard[]): OverviewStatus {
+	const items: StatusItem[] = [];
+	for (const card of cards) {
+		if (!card.key) continue;
+		items.push({
+			key: card.key,
+			metric: card.name,
+			tone: card.fresh,
+			badge: STATUS_BADGE[card.fresh],
+			detail: card.period && card.period !== '—' ? card.period : '—',
+		});
+	}
+	return summarizeStatus(items);
+}
 
 const REGION_LABEL: Record<Region, string> = {
 	CN: '全国趋势',
@@ -197,6 +293,7 @@ export function toCard(
 		period: last?.date ?? ind.last_date ?? '—',
 		fresh: ind.freshness,
 		seed: hashSeed(ind.key),
+		category: categoryOf(ind.key, series?.title ?? ind.key),
 	};
 
 	if (last) {

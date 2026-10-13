@@ -1,5 +1,5 @@
 import { OVERVIEW_GROUPS, OVERVIEW_META } from '../src/data/overview';
-import type { MetricGroup } from '../src/types';
+import type { CategoryDef, MetricGroup, OverviewStatus } from '../src/types';
 import { renderOverview } from '../src/ui/overview';
 import type { OverviewProps } from '../src/ui/overview';
 
@@ -260,5 +260,137 @@ describe('renderOverview — card → detail navigation', () => {
 		const root = render({ handlers: { onOpen } });
 		cardByName(root, 'CPI（同比）').click();
 		expect(onOpen).not.toHaveBeenCalled();
+	});
+});
+
+describe('renderOverview — category chips', () => {
+	// Tag the sample groups so the chip filter has something to show/hide.
+	const tagged: MetricGroup[] = OVERVIEW_GROUPS.map((g) => ({
+		title: g.title,
+		cards: g.cards.map((c, i) => ({
+			...c,
+			category: i % 2 === 0 ? '消费' : '价格',
+		})),
+	}));
+	const categories: CategoryDef[] = [
+		{ id: '全部', label: '全部', count: 4 },
+		{ id: '消费', label: '消费', count: 2 },
+		{ id: '价格', label: '价格', count: 2 },
+	];
+
+	it('omits the chip row when no categories are supplied', () => {
+		const root = render();
+		expect(root.querySelector('.mcd-chips')).toBeNull();
+	});
+
+	it('renders one chip per category with the first active', () => {
+		const root = render({ groups: tagged, categories });
+		const chips = root.querySelectorAll<HTMLElement>('.mcd-chip');
+		expect(chips).toHaveLength(3);
+		expect(chips[0]?.dataset.cat).toBe('全部');
+		expect(chips[0]?.classList.contains('is-active')).toBe(true);
+		expect(chips[0]?.getAttribute('aria-selected')).toBe('true');
+		expect(chips[1]?.classList.contains('is-active')).toBe(false);
+	});
+
+	it('filters cards on chip click and reports the category', () => {
+		const onCategoryChange = jest.fn();
+		const root = render({
+			groups: tagged,
+			categories,
+			handlers: { onCategoryChange },
+		});
+		const chips = root.querySelectorAll<HTMLElement>('.mcd-chip');
+		chips[1]?.click(); // 消费
+		expect(onCategoryChange).toHaveBeenLastCalledWith('消费');
+		expect(chips[1]?.classList.contains('is-active')).toBe(true);
+		expect(chips[0]?.classList.contains('is-active')).toBe(false);
+
+		const shown = cards(root).filter((c) => !c.classList.contains('is-hidden'));
+		expect(shown.length).toBeGreaterThan(0);
+		for (const card of shown) expect(card.dataset.category).toBe('消费');
+	});
+});
+
+describe('renderOverview — insert-to-note', () => {
+	it('omits the insert button when there is no handler', () => {
+		const root = render({ categories: [{ id: '全部', label: '全部', count: 1 }] });
+		expect(root.querySelector('.mcd-insert')).toBeNull();
+	});
+
+	it('renders and fires the insert button', () => {
+		const onInsertNote = jest.fn();
+		const root = render({
+			categories: [{ id: '全部', label: '全部', count: 1 }],
+			handlers: { onInsertNote },
+		});
+		const insert = root.querySelector<HTMLElement>('.mcd-insert');
+		expect(insert?.textContent).toBe('插入到笔记');
+		insert?.click();
+		expect(onInsertNote).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe('renderOverview — status panel', () => {
+	const status: OverviewStatus = {
+		items: [
+			{ key: 'k1', metric: '社零总额', tone: 'fresh', badge: '最新', detail: '2026-09' },
+			{ key: 'k2', metric: 'CPI', tone: 'stale', badge: '已过期', detail: '预计 2026-10' },
+		],
+		latest: 1,
+		upcoming: 0,
+		overdue: 1,
+	};
+
+	it('omits the panel when no status is supplied', () => {
+		const root = render();
+		expect(root.querySelector('.mcd-status')).toBeNull();
+	});
+
+	it('renders the legend counts and starts collapsed', () => {
+		const root = render({ status });
+		const toggle = root.querySelector<HTMLElement>('.mcd-status__toggle');
+		expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+		expect(root.querySelector('.mcd-status__body')?.hasAttribute('hidden')).toBe(
+			true,
+		);
+		expect(root.querySelector('.mcd-badge.is-fresh')?.textContent).toBe('最新 1');
+		expect(root.querySelector('.mcd-badge.is-stale')?.textContent).toBe(
+			'已过期 1',
+		);
+	});
+
+	it('expands on toggle click', () => {
+		const root = render({ status });
+		const toggle = root.querySelector<HTMLElement>('.mcd-status__toggle');
+		toggle?.click();
+		expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+		expect(root.querySelector('.mcd-status__body')?.hasAttribute('hidden')).toBe(
+			false,
+		);
+	});
+
+	it('lists one honest row per series', () => {
+		const root = render({ status, statusOpen: true });
+		const rows = root.querySelectorAll<HTMLElement>('.mcd-status__item');
+		expect(rows).toHaveLength(2);
+		expect(rows[0]?.dataset.tone).toBe('fresh');
+		expect(rows[0]?.querySelector('.mcd-status__metric')?.textContent).toBe(
+			'社零总额',
+		);
+		expect(rows[1]?.querySelector('.mcd-status__detail')?.textContent).toBe(
+			'预计 2026-10',
+		);
+	});
+
+	it('shows an honest empty note when there are no series', () => {
+		const root = render({
+			status: { items: [], latest: 0, upcoming: 0, overdue: 0 },
+			statusOpen: true,
+		});
+		expect(root.querySelector('.mcd-status__item')).toBeNull();
+		expect(root.querySelector('.mcd-status__body')?.textContent).toContain(
+			'尚无已接入的真实序列',
+		);
 	});
 });

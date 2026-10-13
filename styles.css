@@ -1057,3 +1057,214 @@
 	padding-top: var(--mcd-sp-3);
 	border-top: 1px solid var(--mcd-stroke);
 }
+
+/* ---------- 总览：分类筛选 + 插入 + 数据状态面板（原型 S1） ---------- */
+
+/* 客户端筛选/折叠用：不改变布局流，直接不渲染 */
+.mcd-root .is-hidden {
+	display: none;
+}
+
+/* 控件行：左侧 chips，右侧插入按钮 */
+.mcd-controls {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: var(--mcd-sp-3);
+}
+
+.mcd-chips {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: var(--mcd-sp-2);
+}
+
+/* 分类 chip：轻量胶囊，选中态用 accent 描边 + 浅底 */
+.mcd-chip {
+	display: inline-flex;
+	align-items: center;
+	height: var(--mcd-h-control);
+	padding: 0 var(--mcd-sp-3);
+	border: 1px solid var(--mcd-stroke);
+	border-radius: var(--mcd-radius-chip);
+	background: transparent;
+	color: var(--mcd-muted);
+	font-size: var(--mcd-fs-caption);
+	font-variant-numeric: tabular-nums;
+	cursor: pointer;
+	transition: border-color 0.12s ease, color 0.12s ease, background 0.12s ease;
+}
+
+.mcd-chip:hover {
+	border-color: var(--mcd-accent);
+	color: var(--mcd-accent);
+}
+
+.mcd-chip:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 1px var(--mcd-accent);
+}
+
+.mcd-chip.is-active {
+	border-color: var(--mcd-accent);
+	background: color-mix(in srgb, var(--mcd-accent) 14%, transparent);
+	color: var(--mcd-accent);
+}
+
+/* 插入到笔记：与 .mcd-button 同视觉，但独立类名避免与头部操作冲突 */
+.mcd-insert {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	height: var(--mcd-h-control);
+	padding: 0 var(--mcd-sp-3);
+	border: 1px solid var(--mcd-stroke);
+	border-radius: var(--mcd-radius-control);
+	background: transparent;
+	color: var(--mcd-text);
+	font-size: var(--mcd-fs-body);
+	cursor: pointer;
+	transition: border-color 0.12s ease, color 0.12s ease, background 0.12s ease;
+}
+
+.mcd-insert:hover {
+	border-color: var(--mcd-accent);
+	color: var(--mcd-accent);
+}
+
+.mcd-insert:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 1px var(--mcd-accent);
+}
+
+/* 数据状态面板：可折叠卡片 */
+.mcd-status {
+	border: 1px solid var(--mcd-stroke);
+	border-radius: var(--mcd-radius-card);
+	background: var(--mcd-card);
+	overflow: hidden;
+}
+
+.mcd-status__toggle {
+	display: flex;
+	align-items: center;
+	gap: var(--mcd-sp-3);
+	width: 100%;
+	padding: var(--mcd-sp-3) var(--mcd-sp-4);
+	border: none;
+	background: transparent;
+	color: var(--mcd-text);
+	cursor: pointer;
+	text-align: left;
+}
+
+.mcd-status__toggle:hover {
+	background: var(--mcd-hover);
+}
+
+.mcd-status__toggle:focus-visible {
+	outline: none;
+	box-shadow: inset 0 0 0 1px var(--mcd-accent);
+}
+
+.mcd-status__title {
+	font-size: var(--mcd-fs-label);
+	font-weight: 600;
+}
+
+.mcd-status__counts {
+	display: inline-flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: var(--mcd-sp-2);
+	margin-left: auto;
+}
+
+/* 图例徽标：与新鲜度点同色系（fresh/aging/stale） */
+.mcd-badge.is-fresh {
+	color: var(--mcd-accent);
+	border-color: color-mix(in srgb, var(--mcd-accent) 45%, transparent);
+}
+
+.mcd-badge.is-aging {
+	color: var(--mcd-amber);
+	border-color: color-mix(in srgb, var(--mcd-amber) 40%, transparent);
+}
+
+.mcd-badge.is-stale {
+	color: var(--mcd-stale);
+	border-color: color-mix(in srgb, var(--mcd-stale) 45%, transparent);
+}
+
+/* 折叠箭头：展开时旋转 180° */
+.mcd-status__chevron {
+	width: 8px;
+	height: 8px;
+	border-right: 1.5px solid var(--mcd-muted);
+	border-bottom: 1.5px solid var(--mcd-muted);
+	transform: rotate(45deg);
+	transition: transform 0.15s ease;
+}
+
+.mcd-status__toggle[aria-expanded='true'] .mcd-status__chevron {
+	transform: rotate(-135deg);
+}
+
+.mcd-status__body {
+	padding: 0 var(--mcd-sp-4) var(--mcd-sp-3);
+	border-top: 1px solid var(--mcd-stroke);
+}
+
+.mcd-status__list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.mcd-status__item {
+	display: grid;
+	grid-template-columns: auto 1fr auto auto;
+	align-items: center;
+	gap: var(--mcd-sp-3);
+	padding: var(--mcd-sp-2) 0;
+	border-bottom: 1px solid var(--mcd-stroke);
+	font-size: var(--mcd-fs-caption);
+}
+
+.mcd-status__item:last-child {
+	border-bottom: none;
+}
+
+.mcd-status__metric {
+	color: var(--mcd-text);
+}
+
+.mcd-status__badge {
+	padding: 1px 6px;
+	border: 1px solid var(--mcd-stroke);
+	border-radius: var(--mcd-radius-chip);
+	font-size: var(--mcd-fs-micro);
+}
+
+.mcd-status__badge.is-fresh {
+	color: var(--mcd-accent);
+	border-color: color-mix(in srgb, var(--mcd-accent) 45%, transparent);
+}
+
+.mcd-status__badge.is-aging {
+	color: var(--mcd-amber);
+	border-color: color-mix(in srgb, var(--mcd-amber) 40%, transparent);
+}
+
+.mcd-status__badge.is-stale {
+	color: var(--mcd-stale);
+	border-color: color-mix(in srgb, var(--mcd-stale) 45%, transparent);
+}
+
+.mcd-status__detail {
+	color: var(--mcd-muted);
+	font-family: var(--font-monospace);
+	font-variant-numeric: tabular-nums;
+}

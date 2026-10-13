@@ -1,6 +1,9 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
+	STATUS_BADGE,
+	categoryDefs,
+	categoryOf,
 	collapseRevisions,
 	formatTimestamp,
 	formatValue,
@@ -9,6 +12,8 @@ import {
 	regionLabel,
 	resolveOverview,
 	sparkFromSeries,
+	statusFromCards,
+	summarizeStatus,
 	toDetail,
 	toOverview,
 	unitLabel,
@@ -342,5 +347,74 @@ describe('resolveOverview', () => {
 		expect(model.meta.sampleNotice).toContain('未找到清单文件');
 		expect(model.meta.sampleNotice).toContain('示例数据');
 		expect(model.groups.length).toBeGreaterThan(0);
+	});
+});
+
+describe('overview taxonomy (chips + status panel)', () => {
+	it('categoryOf: key 优先，名称兜底，未知归为消费', () => {
+		expect(categoryOf('cpi_national_yoy')).toBe('价格');
+		expect(categoryOf('money_supply_m2')).toBe('货币');
+		expect(categoryOf('m1_yoy')).toBe('货币');
+		expect(categoryOf('retail_sales_total')).toBe('消费');
+		// No key (bundled sample card) → the display name decides.
+		expect(categoryOf(undefined, '核心 CPI（同比）')).toBe('价格');
+		expect(categoryOf(undefined, 'M2（同比）')).toBe('货币');
+		expect(categoryOf(undefined, '住户存款增速')).toBe('消费');
+	});
+
+	it('categoryDefs: 全部在前，仅列出存在的分类，计数准确', () => {
+		const cards: MetricCard[] = [
+			{ name: 'a', key: 'retail_sales_total', value: '1', unit: '', period: '2026-09', fresh: 'fresh', seed: 1, category: '消费' },
+			{ name: 'b', key: 'cpi_national_yoy', value: '1', unit: '', period: '2026-09', fresh: 'fresh', seed: 1, category: '价格' },
+			{ name: 'c', key: 'retail_sales_total_yoy', value: '1', unit: '', period: '2026-09', fresh: 'fresh', seed: 1, category: '消费' },
+		];
+		const defs = categoryDefs(cards);
+		expect(defs.map((d) => d.id)).toEqual(['全部', '消费', '价格']);
+		expect(defs[0]).toEqual({ id: '全部', label: '全部', count: 3 });
+		expect(defs[1]).toEqual({ id: '消费', label: '消费', count: 2 });
+		// 货币 has no cards → omitted (no dead chip).
+		expect(defs.find((d) => d.id === '货币')).toBeUndefined();
+	});
+
+	it('statusFromCards: 只列真实卡片，按 tone 汇总三档计数', () => {
+		const cards: MetricCard[] = [
+			{ name: 'real fresh', key: 'k1', value: '1', unit: '', period: '2026-09', fresh: 'fresh', seed: 1 },
+			{ name: 'real aging', key: 'k2', value: '1', unit: '', period: '2026-08', fresh: 'aging', seed: 1 },
+			{ name: 'real stale', key: 'k3', value: '1', unit: '', period: '2026-01', fresh: 'stale', seed: 1 },
+			// Keyless sample card → excluded from the honest status panel.
+			{ name: 'sample', value: '1', unit: '', period: '2026-09', fresh: 'fresh', seed: 1 },
+		];
+		const status = statusFromCards(cards);
+		expect(status.items.map((i) => i.key)).toEqual(['k1', 'k2', 'k3']);
+		expect(status.latest).toBe(1);
+		expect(status.upcoming).toBe(1);
+		expect(status.overdue).toBe(1);
+		expect(status.items[0]?.badge).toBe(STATUS_BADGE.fresh);
+	});
+
+	it('summarizeStatus: unknown 计入最新档', () => {
+		const status = summarizeStatus([
+			{ key: 'a', metric: 'a', tone: 'unknown', badge: '最新', detail: '—' },
+		]);
+		expect(status.latest).toBe(1);
+		expect(status.upcoming).toBe(0);
+		expect(status.overdue).toBe(0);
+	});
+
+	it('STATUS_BADGE 覆盖四态图例标签', () => {
+		expect(STATUS_BADGE.fresh).toBe('最新');
+		expect(STATUS_BADGE.aging).toBe('临近更新');
+		expect(STATUS_BADGE.stale).toBe('已过期');
+		expect(STATUS_BADGE.unknown).toBe('最新');
+	});
+
+	it('toOverview 给每张真实卡片打上分类', () => {
+		const { manifest, caps, seriesByKey } = loadGolden();
+		const model = toOverview(manifest, seriesByKey, caps);
+		const cards = model.groups.flatMap((g) => g.cards);
+		expect(cards.length).toBeGreaterThan(0);
+		for (const card of cards) {
+			expect(['消费', '价格', '货币']).toContain(card.category);
+		}
 	});
 });

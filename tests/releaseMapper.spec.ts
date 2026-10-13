@@ -3,6 +3,7 @@ import path from 'node:path';
 import { parseManifest, parseSeries } from '../src/contract/parse';
 import {
 	deriveNextExpected,
+	toOverviewStatus,
 	toReleaseModel,
 } from '../src/contract/releaseMapper';
 import type {
@@ -315,5 +316,38 @@ describe('toReleaseModel synthetic branches', () => {
 		expect(marker.month).toBe('2026-06');
 		expect(marker.nextMonth).toBe('2026-09');
 		expect(model.rows[0]!.nextExpected).toBe('预计 2026-Q3');
+	});
+});
+
+describe('toOverviewStatus', () => {
+	it('folds rows into the panel: fresh shows 截至, aging/stale show 预计', () => {
+		const m = manifestOf(
+			[
+				ind({ key: 'fresh_one', last_date: '2026-09', freshness: 'fresh' }),
+				ind({ key: 'aging_one', last_date: '2026-08', freshness: 'aging' }),
+				ind({ key: 'stale_one', last_date: '2026-01', freshness: 'stale' }),
+			],
+			'2026-10-11T08:00:00+08:00',
+		);
+		const status = toOverviewStatus(toReleaseModel(m, new Map()));
+		expect(status.latest).toBe(1);
+		expect(status.upcoming).toBe(1);
+		expect(status.overdue).toBe(1);
+
+		const byKey = new Map(status.items.map((i) => [i.key, i]));
+		expect(byKey.get('fresh_one')?.detail).toBe('2026-09');
+		expect(byKey.get('fresh_one')?.badge).toBe('最新');
+		expect(byKey.get('aging_one')?.detail).toBe('预计 2026-09');
+		expect(byKey.get('aging_one')?.badge).toBe('临近更新');
+		expect(byKey.get('stale_one')?.detail).toBe('预计 2026-02');
+		expect(byKey.get('stale_one')?.badge).toBe('已过期');
+	});
+
+	it('yields an empty panel for an empty manifest', () => {
+		const status = toOverviewStatus(toReleaseModel(manifestOf([]), new Map()));
+		expect(status.items).toHaveLength(0);
+		expect(status.latest).toBe(0);
+		expect(status.upcoming).toBe(0);
+		expect(status.overdue).toBe(0);
 	});
 });

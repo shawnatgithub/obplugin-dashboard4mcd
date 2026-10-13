@@ -12,7 +12,12 @@
  */
 
 import type { OverviewMeta } from '../data/overview';
-import type { MetricGroup } from '../types';
+import type {
+	CategoryDef,
+	MetricCategory,
+	MetricGroup,
+	OverviewStatus,
+} from '../types';
 import { clearEl, el, svgEl } from './dom';
 import { buildMetricCard } from './metricCard';
 
@@ -27,6 +32,10 @@ export interface OverviewHandlers {
 	onSelect?: (selected: string | null) => void;
 	/** A real card was activated; receives its contract key to open detail. */
 	onOpen?: (key: string) => void;
+	/** Insert a markdown snapshot of the visible cards into the active note. */
+	onInsertNote?: () => void;
+	/** The category filter changed; receives the active chip id. */
+	onCategoryChange?: (category: MetricCategory | '全部') => void;
 }
 
 export interface OverviewProps {
@@ -34,6 +43,12 @@ export interface OverviewProps {
 	groups: MetricGroup[];
 	handlers?: OverviewHandlers;
 	selected?: string | null;
+	/** Filter chips (全部 / 消费 / 价格 / 货币). Omitted → no chip row. */
+	categories?: CategoryDef[];
+	/** The collapsible 数据状态 panel model. Omitted → no panel. */
+	status?: OverviewStatus;
+	/** Start with the 数据状态 panel expanded (default collapsed). */
+	statusOpen?: boolean;
 }
 
 /** Refresh glyph path (Lucide `refresh-cw`), copied from the prototype. */
@@ -103,13 +118,124 @@ function buildGroup(
 
 	const grid = el('div', 'mcd-grid');
 	for (const card of group.cards) {
-		grid.appendChild(
-			buildMetricCard(card, handlers, card.name === selected),
-		);
+		const cardEl = buildMetricCard(card, handlers, card.name === selected);
+		// Tag with its category so the chip filter can show/hide it client-side.
+		cardEl.dataset.category = card.category ?? '消费';
+		grid.appendChild(cardEl);
 	}
 	section.appendChild(grid);
 
 	return section;
+}
+
+/**
+ * The controls row: category filter chips + the insert-to-note action. Chips
+ * carry `data-cat`; the active one gets `is-active`. The insert button uses a
+ * distinct class so it never collides with the header's `.mcd-button`/`.mcd-nav`.
+ */
+function buildControls(
+	categories: CategoryDef[],
+	handlers: OverviewHandlers,
+	onFilter: (category: MetricCategory | '全部') => void,
+): HTMLElement {
+	const controls = el('div', 'mcd-controls');
+
+	const chips = el('div', 'mcd-chips');
+	chips.setAttribute('role', 'tablist');
+	chips.setAttribute('aria-label', '指标分类筛选');
+	categories.forEach((cat, i) => {
+		const chip = el('button', 'mcd-chip', `${cat.label} ${cat.count}`);
+		chip.type = 'button';
+		chip.dataset.cat = cat.id;
+		chip.setAttribute('role', 'tab');
+		chip.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
+		if (i === 0) chip.classList.add('is-active');
+		chip.addEventListener('click', () => {
+			chips.querySelectorAll<HTMLElement>('.mcd-chip').forEach((c) => {
+				const active = c === chip;
+				c.classList.toggle('is-active', active);
+				c.setAttribute('aria-selected', active ? 'true' : 'false');
+			});
+			onFilter(cat.id);
+			handlers.onCategoryChange?.(cat.id);
+		});
+		chips.appendChild(chip);
+	});
+	controls.appendChild(chips);
+
+	if (handlers.onInsertNote) {
+		const insert = el('button', 'mcd-insert', '插入到笔记');
+		insert.type = 'button';
+		insert.title = '将当前可见指标快照插入到当前笔记';
+		insert.addEventListener('click', () => handlers.onInsertNote?.());
+		controls.appendChild(insert);
+	}
+
+	return controls;
+}
+
+/**
+ * The collapsible 数据状态 panel: a toggle row with the three legend counts, and
+ * a body listing one honest row per real series (freshness tone + 预计/截至 detail).
+ * No scheduler runtime state is shown — the contract does not carry it.
+ */
+function buildStatusPanel(status: OverviewStatus, open: boolean): HTMLElement {
+	const panel = el('div', 'mcd-status');
+
+	const toggle = el('button', 'mcd-status__toggle');
+	toggle.type = 'button';
+	toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+	toggle.appendChild(el('span', 'mcd-status__title', '数据状态'));
+	const badges = el('span', 'mcd-status__counts');
+	const latest = el('span', 'mcd-badge is-fresh', `最新 ${status.latest}`);
+	const upcoming = el('span', 'mcd-badge is-aging', `临近更新 ${status.upcoming}`);
+	const overdue = el('span', 'mcd-badge is-stale', `已过期 ${status.overdue}`);
+	badges.append(latest, upcoming, overdue);
+	toggle.appendChild(badges);
+	toggle.appendChild(el('span', 'mcd-status__chevron'));
+	panel.appendChild(toggle);
+
+	const body = el('div', 'mcd-status__body');
+	if (!open) body.hidden = true;
+	if (status.items.length === 0) {
+		body.appendChild(
+			el('p', 'mcd-muted mcd-fs-sm', '尚无已接入的真实序列。'),
+		);
+	} else {
+		const list = el('ul', 'mcd-status__list');
+		for (const item of status.items) {
+			const row = el('li', 'mcd-status__item');
+			row.dataset.tone = item.tone;
+			row.appendChild(el('span', `mcd-dot is-${item.tone}`));
+			row.appendChild(el('span', 'mcd-status__metric', item.metric));
+			row.appendChild(el('span', `mcd-status__badge is-${item.tone}`, item.badge));
+			row.appendChild(el('span', 'mcd-status__detail', item.detail));
+			list.appendChild(row);
+		}
+		body.appendChild(list);
+	}
+	panel.appendChild(body);
+
+	toggle.addEventListener('click', () => {
+		const nowOpen = body.hidden;
+		body.hidden = !nowOpen;
+		toggle.setAttribute('aria-expanded', nowOpen ? 'true' : 'false');
+	});
+
+	return panel;
+}
+
+/** Show only the cards in `active` (全部 shows every card); hide emptied groups. */
+function applyCategory(view: HTMLElement, active: MetricCategory | '全部'): void {
+	view.querySelectorAll<HTMLElement>('.mcd-group').forEach((section) => {
+		let visible = 0;
+		section.querySelectorAll<HTMLElement>('.mcd-card').forEach((card) => {
+			const show = active === '全部' || card.dataset.category === active;
+			card.classList.toggle('is-hidden', !show);
+			if (show) visible++;
+		});
+		section.classList.toggle('is-hidden', visible === 0);
+	});
 }
 
 function buildEmptyState(): HTMLElement {
@@ -156,6 +282,18 @@ export function renderOverview(root: HTMLElement, props: OverviewProps): void {
 	// contract data carries an empty notice (spec D-M2-5, T5).
 	if (props.meta.sampleNotice) {
 		main.appendChild(buildSampleBanner(props.meta.sampleNotice));
+	}
+	// Category filter chips + insert-to-note (only when the model supplies them).
+	if (props.categories && props.categories.length > 0) {
+		main.appendChild(
+			buildControls(props.categories, handlers, (active) =>
+				applyCategory(view, active),
+			),
+		);
+	}
+	// Collapsible 数据状态 panel (real freshness + 预计/截至 detail).
+	if (props.status) {
+		main.appendChild(buildStatusPanel(props.status, props.statusOpen ?? false));
 	}
 	if (props.groups.length === 0) {
 		main.appendChild(buildEmptyState());

@@ -30,6 +30,41 @@ export interface Delta {
 /** Card corner badge. `手动` = manually sourced; `NEW` = newly added series. */
 export type Badge = 'NEW' | '手动';
 
+/**
+ * Thematic category for the overview's filter chips (prototype 全局原型:
+ * 全部 / 消费 / 价格 / 货币). Derived from the contract key (real cards) or the
+ * card name (bundled sample cards, which carry no key) — see `categoryOf`.
+ */
+export type MetricCategory = '消费' | '价格' | '货币';
+
+/** A filter chip: a category (or 全部) plus how many visible cards it spans. */
+export interface CategoryDef {
+	/** `全部` shows every card; otherwise the category id. */
+	id: MetricCategory | '全部';
+	label: string;
+	count: number;
+}
+
+/** One row of the collapsible 数据状态 panel. */
+export interface StatusItem {
+	key: string;
+	metric: string;
+	/** Freshness tone driving the row's colour. */
+	tone: Fresh;
+	/** Legend label: 最新 / 临近更新 / 已过期. */
+	badge: string;
+	/** `预计 <period>` for a real series, else the data period, else `—`. */
+	detail: string;
+}
+
+/** The 数据状态 panel model: rows plus the three legend counts. */
+export interface OverviewStatus {
+	items: StatusItem[];
+	latest: number;
+	upcoming: number;
+	overdue: number;
+}
+
 /** A single metric card in the overview grid. */
 export interface MetricCard {
 	name: string;
@@ -61,6 +96,12 @@ export interface MetricCard {
 	 * the sparkline breaks there and draws a dashed marker.
 	 */
 	gaps?: number[];
+	/**
+	 * Thematic category for the filter chips. Optional so bundled sample
+	 * literals (which predate the taxonomy) stay valid; the view treats a
+	 * missing category as 消费.
+	 */
+	category?: MetricCategory;
 }
 
 /** A titled group of metric cards. */
