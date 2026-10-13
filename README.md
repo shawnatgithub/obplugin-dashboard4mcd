@@ -1,92 +1,20 @@
-# Obsidian Sample Plugin
+## 1. 一句话定位
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+一个**本地优先**的宏观经济与消费数据面板：Python 数据产品负责采集和加工中国宏观指标，Obsidian 插件负责在笔记软件内展示，服务零售商业地产从业者的月度经营判断。
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+## 2. 用户与场景
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
+- **用户画像**：综合体购物中心总经理，同时关注全国大势与上海、四川/成都两个本地市场。具备宏观分析素养，但不是程序员。
+- **使用节奏**：月度。每月 9–15 日官方数据陆续发布后，查看最新指标，撰写月度判断笔记。
+- **决策场景**：业态配比（餐饮 vs 商品、服务 vs 实物）、招商与运营节奏、租户销售预警、项目投资判断。
+- **关键诉求**：指标不只是"看看"，要服务**指征信号**——单一指标信号弱，多指标叠加（如社零与网上零售增速差、M1 与社零叠加）有交叉验证价值。
 
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open modal (simple)" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and outputs a Notice on click.
-- Registers a global interval which logs 'setInterval' to the console.
+## 3. 产品形态：前端Obsidian插件，后端Python ETL
 
-## First time developing plugins?
+| 交付物                      | 技术                           | 职责                                 | 位置                              |
+| --------------------------- | ------------------------------ | ------------------------------------ | --------------------------------- |
+| 数据产品（Python ETL）      | Python + akshare（锁版本）     | 采集、清洗、校验、生成标准化数据文件 | 独立仓库                          |
+| Obsidian 插件（TypeScript） | TypeScript + esbuild + ECharts | 只读渲染数据文件，展示面板           | 本仓库（`.obsidian/plugins/mcd`） |
 
-Quick starting guide for new plugin devs:
+**核心原则：插件只做展示——不采集、不判断、不联网。** 数据获取与加工全部封装在 ETL 侧；未来其他前端（Web、桌面）读同一套数据契约。
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `src/main.ts` to `main.js`.
-- Make changes to `src/main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
-
-## Releasing new releases
-
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
-
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
-
-## Adding your plugin to the community plugin list
-
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
-
-## How to use
-
-- Clone this repo.
-- Make sure your NodeJS is at least v18 (`node --version`).
-- `npm i` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
-
-## Manually installing the plugin
-
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
-
-## Improve code quality with eslint
-
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code.
-- This project already has eslint preconfigured, you can invoke a check by running`npm run lint`
-- Together with a custom eslint [plugin](https://github.com/obsidianmd/eslint-plugin) for Obsidan specific code guidelines.
-- A GitHub action is preconfigured to automatically lint every commit on all branches.
-
-## Funding URL
-
-You can include funding URLs where people who use your plugin can financially support it.
-
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
-
-```json
-{
-	"fundingUrl": "https://buymeacoffee.com"
-}
-```
-
-If you have multiple URLs, you can also do:
-
-```json
-{
-	"fundingUrl": {
-		"Buy Me a Coffee": "https://buymeacoffee.com",
-		"GitHub Sponsor": "https://github.com/sponsors",
-		"Patreon": "https://www.patreon.com/"
-	}
-}
-```
-
-## API Documentation
-
-See https://docs.obsidian.md
