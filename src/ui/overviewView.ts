@@ -9,20 +9,25 @@
  * `contract/` modules, so this file stays lifecycle-only.
  */
 
-import { ItemView, MarkdownView, Notice } from 'obsidian';
+import { Component, ItemView, MarkdownRenderer, MarkdownView, Notice } from 'obsidian';
 import type { WorkspaceLeaf } from 'obsidian';
-import { loadContract } from '../contract/loader';
+import { loadContract, loadRetail } from '../contract/loader';
+import type { Diagnostic } from '../contract/retail';
+import type { OverviewRange } from '../analysis/overviewRange';
 import {
 	categoryDefs,
 	resolveOverview,
 	statusFromCards,
+	toDetail,
+	type DetailModel,
 } from '../contract/mapper';
 import { toOverviewStatus, toReleaseModel } from '../contract/releaseMapper';
 import { VIEW_ICON, VIEW_TITLE, VIEW_TYPE_MCD_OVERVIEW } from '../constants';
 import type McdPlugin from '../main';
 import type { MetricCard, MetricCategory, OverviewStatus } from '../types';
 import { renderOnboarding } from './onboarding';
-import { renderOverview } from './overview';
+import { renderOverview, type OverviewHandle } from './overview';
+import { renderChart } from './chart';
 import { snapshotMarkdown } from './snapshot';
 
 export class McdOverviewView extends ItemView {
@@ -33,6 +38,12 @@ export class McdOverviewView extends ItemView {
 	private status: OverviewStatus | undefined;
 	private updatedAt = '';
 	private isSample = false;
+	private range: OverviewRange = '12';
+	private statusOpen = false;
+	private generation = 0;
+	private closed = false;
+	private overview: OverviewHandle | undefined;
+	private markdownScope: Component | undefined;
 
 	constructor(leaf: WorkspaceLeaf, plugin: McdPlugin) {
 		super(leaf);
@@ -52,11 +63,25 @@ export class McdOverviewView extends ItemView {
 	}
 
 	async onOpen(): Promise<void> {
+		this.closed = false;
+		this.registerEvent(this.app.workspace.on('css-change', () => {
+			if (!this.closed) this.overview?.redraw();
+		}));
 		await this.refresh(false);
 	}
 
 	async onClose(): Promise<void> {
+		this.closed = true;
+		this.generation++;
+		this.disposeRender();
 		this.contentEl.textContent = '';
+	}
+
+	private disposeRender(): void {
+		this.overview?.dispose();
+		this.overview = undefined;
+		if (this.markdownScope) this.removeChild(this.markdownScope);
+		this.markdownScope = undefined;
 	}
 
 	/**
@@ -70,10 +95,16 @@ export class McdOverviewView extends ItemView {
 	 * (D-M2-5). Any other load failure falls straight back to the sample set.
 	 */
 	private async refresh(notify: boolean): Promise<void> {
-		const result = await loadContract(
-			this.app.vault.adapter,
-			this.plugin.settings.dataDir,
-		);
+		if (this.closed) return;
+		const generation = ++this.generation;
+		const adapter = this.app.vault.adapter;
+		const dataDir = this.plugin.settings.dataDir;
+		const [result, retail] = await Promise.all([
+			loadContract(adapter, dataDir),
+			loadRetail(adapter, dataDir),
+		]);
+		if (this.closed || generation !== this.generation) return;
+		this.disposeRender();
 
 		if (
 			!result.ok &&
@@ -113,13 +144,46 @@ export class McdOverviewView extends ItemView {
 		this.status = result.ok
 			? toOverviewStatus(toReleaseModel(result.manifest, result.seriesByKey))
 			: statusFromCards(cards);
-		renderOverview(this.contentEl, {
+		const details = new Map<string, DetailModel>();
+		if (result.ok) {
+			for (const card of cards) {
+				if (card.key) details.set(card.key, toDetail(card.key, result.manifest,
+					result.seriesByKey.get(card.key) ?? null, result.caps));
+			}
+		}
+		const diagnostics: Diagnostic[] = result.ok ? [...(result.diagnostics ?? [])] : [{
+			code: result.reason, severity: 'error', message: result.detail,
+		}];
+		diagnostics.push(...(retail.ok ? retail.value.diagnostics : [{
+			code: `retail_${retail.reason}`, severity: 'warning' as const, message: retail.detail,
+		}]));
+		const scope = this.addChild(new Component());
+		this.markdownScope = scope;
+		this.overview = renderOverview(this.contentEl, {
 			meta: model.meta,
 			groups: model.groups,
 			categories: categoryDefs(cards),
 			status: this.status,
 			selected: this.selected,
+			category: this.category,
+			range: this.range,
+			statusOpen: this.statusOpen,
+			details,
+			retail,
+			diagnostics,
+			chartRenderer: renderChart,
+			renderMarkdown: (markdown, host) => {
+				void MarkdownRenderer.render(this.app, markdown, host, '', scope).catch(() => {
+					if (this.markdownScope !== scope) return;
+					host.textContent = '';
+					const pre = host.ownerDocument.createElement('pre');
+					pre.textContent = markdown;
+					host.appendChild(pre);
+				});
+			},
 			handlers: {
+				onRangeChange: (range) => { this.range = range; },
+				onStatusToggle: (open) => { this.statusOpen = open; },
 				onSelect: (selected) => {
 					this.selected = selected;
 				},

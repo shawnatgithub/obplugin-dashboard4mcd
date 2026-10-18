@@ -18,6 +18,8 @@ export interface ChartTokens {
 	grid: string;
 	text: string;
 	muted: string;
+	surface: string;
+	border: string;
 }
 
 /** The `--mcd-*` custom-property name behind each `ChartTokens` field. */
@@ -28,6 +30,8 @@ export const CHART_TOKEN_VARS: Record<keyof ChartTokens, string> = {
 	grid: '--mcd-grid',
 	text: '--mcd-text',
 	muted: '--mcd-muted',
+	surface: '--mcd-pop',
+	border: '--mcd-stroke',
 };
 
 /**
@@ -36,12 +40,14 @@ export const CHART_TOKEN_VARS: Record<keyof ChartTokens, string> = {
  * and are always overridden at runtime by `resolveChartTokens`.
  */
 export const DEFAULT_CHART_TOKENS: ChartTokens = {
-	accent: '#4ec9a5',
-	wire: 'rgba(136, 136, 136, 0.55)',
-	amber: '#d9a441',
-	grid: 'rgba(136, 136, 136, 0.25)',
-	text: '#2e3338',
-	muted: '#707070',
+	accent: 'Highlight',
+	wire: 'GrayText',
+	amber: 'GrayText',
+	grid: 'GrayText',
+	text: 'CanvasText',
+	muted: 'GrayText',
+	surface: 'Canvas',
+	border: 'GrayText',
 };
 
 /**
@@ -65,5 +71,7 @@ export function resolveChartTokens(
 		grid: read('grid'),
 		text: read('text'),
 		muted: read('muted'),
+		surface: read('surface'),
+		border: read('border'),
 	};
 }

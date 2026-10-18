@@ -149,6 +149,100 @@ const sampleBanner = evalJs(
 );
 record('真实数据下无示例横幅', sampleBanner.value === 'false', `banner=${sampleBanner.value}`);
 
+// Dashboard acceptance uses only existing local products, never synthetic retail data.
+function overviewJs(body) {
+	return evalJs(`(function(){const root=app.workspace.getLeavesOfType('${VIEW_TYPE}')[0]?.view.contentEl;if(!root)return 'no-root';${body}})()`);
+}
+const overviewInitial = overviewJs(`
+	const cards=[...root.querySelectorAll('.mcd-card')];
+	return cards.length>0 && cards[0].getAttribute('aria-pressed')==='true'
+		&& cards.filter(c=>c.getAttribute('aria-pressed')==='true').length===1
+		&& cards.every(c=>c.getBoundingClientRect().height>=120 && c.getBoundingClientRect().height<=132)
+		&& getComputedStyle(cards[0]).borderColor==='rgb(16, 185, 129)';
+`);
+record('Dashboard: initial selection, compact cards, exact green border', overviewInitial.value === 'true', overviewInitial.value);
+const overviewClick = overviewJs(`
+	const card=root.querySelectorAll('.mcd-card')[1];
+	const before=root.querySelector('.mcd-overview-detail canvas');
+	card.click();card.click();
+	return card.getAttribute('aria-pressed')==='true'
+		&& root.querySelector('.mcd-overview-detail__header h2').textContent===card.dataset.metric
+		&& root.querySelector('.mcd-overview-detail canvas')!==before;
+`);
+record('Dashboard: repeated selection updates inline chart', overviewClick.value === 'true', overviewClick.value);
+const overviewRanges = overviewJs(`
+	const select=root.querySelector('.mcd-range');
+	const drawings=[];
+	for(const range of ['12','24','36','all']) {
+		select.value=range;select.dispatchEvent(new Event('change'));
+		drawings.push(root.querySelector('.mcd-card .mcd-spark').outerHTML);
+	}
+	return new Set(drawings).size===4 && select.nextElementSibling.classList.contains('mcd-insert');
+`);
+record('Dashboard: all four ranges update sparklines', overviewRanges.value === 'true', overviewRanges.value);
+overviewJs(`
+	root.querySelector('[data-cat="价格"]')?.click();
+	const select=root.querySelector('.mcd-range');select.value='24';select.dispatchEvent(new Event('change'));
+	root.querySelector('.mcd-status__toggle').click();
+	root.querySelector('.mcd-icon-button').click();return true;
+`);
+await sleep(800);
+const overviewRefresh = overviewJs(`
+	return root.querySelector('.mcd-chip.is-active').dataset.cat==='价格'
+		&& root.querySelector('.mcd-range').value==='24'
+		&& root.querySelector('.mcd-card.is-selected').dataset.category==='价格'
+		&& root.querySelector('.mcd-status__toggle').getAttribute('aria-expanded')==='true'
+		&& root.querySelectorAll('.mcd-diagnostic').length===
+			Number(root.querySelector('.mcd-status__warnings').textContent)+Number(root.querySelector('.mcd-status__errors').textContent)
+		&& root.querySelectorAll('.mcd-retail tbody tr').length===7
+		&& root.querySelectorAll('.mcd-retail th').length===4;
+`);
+record('Dashboard: refresh persistence, diagnostic parity, retail structure', overviewRefresh.value === 'true', overviewRefresh.value);
+const overviewTheme = overviewJs(`
+	const body=document.body;const wasDark=body.classList.contains('theme-dark');
+	const host=()=>root.querySelector('.mcd-overview-detail__chart');
+	const colors=[];let replaced=true;
+	try {
+		for(const dark of [true,false]) {
+			const before=host().querySelector('canvas');
+			body.classList.toggle('theme-dark',dark);body.classList.toggle('theme-light',!dark);
+			app.workspace.trigger('css-change');
+			replaced=replaced && before!==host().querySelector('canvas');
+			colors.push(getComputedStyle(host()).getPropertyValue('--mcd-text'));
+		}
+		return replaced && colors[0]!==colors[1];
+	} finally {
+		body.classList.toggle('theme-dark',wasDark);body.classList.toggle('theme-light',!wasDark);
+		app.workspace.trigger('css-change');
+	}
+`);
+record('Dashboard: native theme colors and canvas redraw', overviewTheme.value === 'true', overviewTheme.value);
+const overviewWidth = overviewJs(`return JSON.stringify(root.querySelector('.mcd-overview').style.width);`).value;
+overviewJs(`root.querySelector('.mcd-overview').style.width='760px';return true;`);
+// ResizeObserver updates the canvas asynchronously after the container query.
+await sleep(400);
+const overviewNarrow = overviewJs(`
+	const trend=root.querySelector('.mcd-overview-detail__trend').getBoundingClientRect();
+	const retail=root.querySelector('.mcd-retail').getBoundingClientRect();
+	return retail.top>=trend.bottom && Math.abs(retail.left-trend.left)<1
+		&& root.querySelector('.mcd-overview-detail').scrollWidth<=760;
+`);
+overviewJs(`root.querySelector('.mcd-overview').style.width=${overviewWidth};return true;`);
+record('Dashboard: below-900px pane stacks chart and table', overviewNarrow.value === 'true', overviewNarrow.value);
+overviewJs(`
+	root.querySelector('[data-cat="全部"]').click();
+	const select=root.querySelector('.mcd-range');select.value='12';select.dispatchEvent(new Event('change'));
+	root.querySelector('.mcd-card').click();root.querySelector('.mcd-status__toggle').click();return true;
+`);
+overviewJs(`root.querySelectorAll('.mcd-card')[1].focus();return true;`);
+for (const type of ['keyDown', 'keyUp']) {
+	const key = run(['dev:cdp', 'method=Input.dispatchKeyEvent', `params=${JSON.stringify({ type, key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, ...(type === 'keyDown' ? { text: '\r' } : {}) })}`]);
+	record(`Dashboard: keyboard transport ${type}`, key.status === 0, key.err);
+}
+const overviewKeyboard = overviewJs(`return root.querySelectorAll('.mcd-card')[1].getAttribute('aria-pressed')==='true';`);
+record('Dashboard: native Enter selects the focused card', overviewKeyboard.value === 'true', overviewKeyboard.value);
+overviewJs(`root.querySelector('.mcd-card').click();return true;`);
+
 // 7. 打开一个真实指标的详情页，断言主图与数据表
 const opened = evalJs(
 	`(function(){var p=app.plugins.plugins['${PLUGIN_ID}'];p.openDetail('${DETAIL_KEY}');return true;})()`,

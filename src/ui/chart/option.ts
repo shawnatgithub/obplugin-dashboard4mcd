@@ -104,7 +104,14 @@ interface DataZoomPiece {
 }
 interface BuiltOption {
 	animation: boolean;
-	tooltip: { trigger: string };
+	tooltip: {
+		trigger: string;
+		backgroundColor: string;
+		borderColor: string;
+		textStyle: { color: string };
+		renderMode: 'richText';
+		confine: boolean;
+	};
 	grid?: GridBox | GridBox[];
 	xAxis?: CategoryAxis | CategoryAxis[];
 	yAxis?: ValueAxis | ValueAxis[];
@@ -115,6 +122,11 @@ interface BuiltOption {
 }
 
 /* ---------- Pure helpers ---------- */
+
+function tooltip(trigger: string, tokens: ChartTokens): BuiltOption['tooltip'] {
+	return { trigger, backgroundColor: tokens.surface, borderColor: tokens.border,
+		textStyle: { color: tokens.text }, renderMode: 'richText', confine: true };
+}
 
 /** Period count per range; `all` is unbounded (mirrors analysis/range). */
 const RANGE_MONTHS: Record<RangeKey, number> = {
@@ -130,7 +142,7 @@ const RANGE_MONTHS: Record<RangeKey, number> = {
  * January and just `MM` otherwise (UI-UX §5).
  */
 function xLabel(date: string): string {
-	if (!date.includes('-')) return date;
+	if (!/^\d{4}-\d{2}$/.test(date)) return date;
 	return date.endsWith('-01') ? date : date.slice(5);
 }
 
@@ -330,7 +342,7 @@ function cartesianOption(model: ChartModel, tokens: ChartTokens): BuiltOption {
 
 	return {
 		animation: false,
-		tooltip: { trigger: 'axis' },
+		tooltip: tooltip('axis', tokens),
 		grid,
 		xAxis: dual ? xAxis : xAxis[0],
 		yAxis: dual ? yAxis : yAxis[0],
@@ -361,7 +373,7 @@ function calendarOption(model: ChartModel, tokens: ChartTokens): BuiltOption {
 
 	return {
 		animation: false,
-		tooltip: { trigger: 'item' },
+		tooltip: tooltip('item', tokens),
 		visualMap: {
 			min: values.length > 0 ? Math.min(...values) : 0,
 			max: values.length > 0 ? Math.max(...values) : 1,

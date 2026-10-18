@@ -13,6 +13,8 @@
  * resolved in `format.ts` (single source). `unknown` = cannot be determined
  * yet (missing release config / first fetch), shown as a neutral dot.
  */
+import type { Frequency, SeriesPoint } from './contract/types';
+
 export type Fresh = 'fresh' | 'aging' | 'stale' | 'unknown';
 
 /** Direction of the period-over-period change. */
@@ -102,6 +104,9 @@ export interface MetricCard {
 	 * missing category as 消费.
 	 */
 	category?: MetricCategory;
+	/** Full dated history for overview-local calendar windows. */
+	points?: SeriesPoint[];
+	frequency?: Frequency;
 }
 
 /** A titled group of metric cards. */

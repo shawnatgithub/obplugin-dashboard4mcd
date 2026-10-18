@@ -40,7 +40,7 @@ const SURFACE_TOKENS = [
 ];
 
 /** 强调色与语义色：插件自持，但色值必须与原型一致 */
-const SELF_HELD_TOKENS = ['accent', 'amber', 'red', 'stale'];
+const NATIVE_SEMANTIC_TOKENS = ['accent', 'amber', 'red', 'stale', 'wire', 'grid'];
 
 /** 取出 `[data-theme='<name>'] { ... }` 块内的令牌声明 */
 function protoThemeBlock(css: string, theme: 'dark' | 'light'): Record<string, string> {
@@ -76,7 +76,7 @@ describe('design tokens', () => {
 	const protoDark = protoThemeBlock(protoCss, 'dark');
 	const protoLight = protoThemeBlock(protoCss, 'light');
 	const pluginDark = pluginBlock(pluginCss, '.mcd-root {');
-	const pluginLight = pluginBlock(pluginCss, '.theme-light .mcd-root {');
+	const selected = pluginCss.match(/\.mcd-card\.is-selected\s*\{([^}]+)\}/)?.[1] ?? '';
 
 	it.each(Object.keys(protoDark))(
 		'styles.css 覆盖原型深色令牌 --%s',
@@ -91,23 +91,24 @@ describe('design tokens', () => {
 		);
 	});
 
-	it.each(SELF_HELD_TOKENS)(
-		'深色自持色 --%s 与原型色值一致',
-		(protoToken) => {
-			expect(pluginDark[pluginToken(protoToken)]).toBe(
-				protoDark[protoToken],
-			);
-		},
-	);
+	it.each(NATIVE_SEMANTIC_TOKENS)('uses native theme variables for %s in both themes', (token) => {
+		expect(pluginDark[pluginToken(token)]).toMatch(/^var\(--/);
+	});
 
-	it.each(SELF_HELD_TOKENS)(
-		'浅色自持色 --%s 与原型色值一致',
-		(protoToken) => {
-			expect(pluginLight[pluginToken(protoToken)]).toBe(
-				protoLight[protoToken],
-			);
-		},
-	);
+	it('keeps the requested selection green as the only literal color', () => {
+		expect(pluginDark['--mcd-selection']).toBe('#10b981');
+		expect(selected).toContain('border-color: var(--mcd-selection)');
+		const literals = pluginCss.replace(/\/\*[\s\S]*?\*\//g, '').match(/#[\da-f]{3,8}\b|rgba?\([^)]*\)/gi);
+		expect(literals).toEqual(['#10b981']);
+	});
+
+	it('adapts the linked layout to the pane width and keeps cards content-sized', () => {
+		expect(/container-type:\s*inline-size/.test(pluginCss)).toBe(true);
+		expect(/@container mcd-overview \(max-width: 899px\)/.test(pluginCss)).toBe(true);
+		expect(/grid-template-columns:\s*minmax\(0, 2fr\) minmax\(0, 1fr\)/.test(pluginCss)).toBe(true);
+		expect(pluginCss.match(/\.mcd-card\s*\{([^}]+)\}/)?.[1]).toContain('height: auto');
+		expect(pluginCss.match(/\.mcd-legend\s*\{([^}]+)\}/)?.[1]).toContain('border: none');
+	});
 
 	it.each(SURFACE_TOKENS)(
 		'表面色 --mcd-%s 走 Obsidian 主题变量，不硬编码',

@@ -74,6 +74,20 @@ describe('joinPath', () => {
 });
 
 describe('loadContract', () => {
+	it('keeps sidecar failures isolated and preserves per-file causes', async () => {
+		const files = goldenFiles();
+		files[`${PREFIX}/retail_breakdown.json`] = '{broken';
+		files[`${PREFIX}/cpi_national_yoy.json`] = '{broken';
+		delete files[`${PREFIX}/capabilities.json`];
+		const res = await loadContract(fakeAdapter(files), DATA_DIR);
+		expect(res.ok).toBe(true);
+		if (!res.ok) throw new Error(res.detail);
+		expect(res.seriesByKey.has('retail_sales_total')).toBe(true);
+		expect(res.diagnostics).toEqual(expect.arrayContaining([
+			expect.objectContaining({ code: 'series_unreadable', row: 'cpi_national_yoy' }),
+			expect.objectContaining({ code: 'capabilities_missing' }),
+		]));
+	});
 	it('happy path: manifest + all series + capabilities', async () => {
 		const res = await loadContract(fakeAdapter(goldenFiles()), DATA_DIR);
 		expect(res.ok).toBe(true);

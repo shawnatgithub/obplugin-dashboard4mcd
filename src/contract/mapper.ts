@@ -52,7 +52,7 @@ export const STATUS_BADGE: Record<Fresh, string> = {
 	fresh: '最新',
 	aging: '临近更新',
 	stale: '已过期',
-	unknown: '最新',
+	unknown: '待采集',
 };
 
 /**
@@ -106,7 +106,7 @@ export function summarizeStatus(items: StatusItem[]): OverviewStatus {
 	for (const it of items) {
 		if (it.tone === 'stale') overdue++;
 		else if (it.tone === 'aging') upcoming++;
-		else latest++;
+		else if (it.tone === 'fresh') latest++;
 	}
 	return { items, latest, upcoming, overdue };
 }
@@ -234,7 +234,7 @@ function lastNonNull(points: readonly SeriesPoint[]): SeriesPoint | null {
  * (avoids a misleading `↑900pct` on a 亿元 series).
  */
 function deltaFor(points: readonly SeriesPoint[], unit: Unit): Delta | undefined {
-	if (unit !== 'yoy_pct' && unit !== 'mom_pct') return undefined;
+	if (unit !== 'yoy_pct' && unit !== 'mom_pct' && unit !== 'pct') return undefined;
 	const nn = points.filter((p) => p.value !== null);
 	if (nn.length < 2) return undefined;
 	const prev = nn[nn.length - 2];
@@ -296,6 +296,8 @@ export function toCard(
 		period: last?.date ?? ind.last_date ?? '—',
 		fresh: ind.freshness,
 		seed: hashSeed(ind.key),
+		points,
+		frequency: ind.frequency,
 		category: categoryOf(ind.key, series?.title ?? ind.key),
 	};
 
@@ -324,7 +326,7 @@ function overviewMeta(manifest: ManifestV1): OverviewMeta {
 		// Real data → no sample banner; T5 skips the banner when this is empty.
 		sampleNotice: '',
 		footnote:
-			'迷你折线为最近 24 期真实值，虚竖线 = 缺失期（不插值）。数据来源：本地 ETL JSON。',
+			'迷你折线与趋势图按所选时间范围显示；虚竖线 = 缺失期（不插值）。数据来源：本地 ETL JSON。',
 	};
 }
 

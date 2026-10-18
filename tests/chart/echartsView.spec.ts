@@ -193,6 +193,14 @@ describe('renderChart — host re-measurement (collapsed-axis regression)', () =
 });
 
 describe('renderChart — SVG fallback (D-M3-4)', () => {
+	it('disposes an initialized chart if setOption fails before falling back', () => {
+		const chart = makeFakeChart();
+		chart.setOption.mockImplementation(() => { throw new Error('invalid option'); });
+		initMock.mockReturnValue(chart as unknown as InitReturn);
+		renderChart(container, model());
+		expect(chart.dispose).toHaveBeenCalledTimes(1);
+		expect(container.querySelector('.mcd-chart__svg')).not.toBeNull();
+	});
 	it('draws the SVG chart and never throws when init fails', () => {
 		initMock.mockImplementation(() => {
 			throw new Error('canvas unavailable');

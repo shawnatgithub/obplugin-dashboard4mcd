@@ -14,6 +14,7 @@ import {
 	sparkFromSeries,
 	statusFromCards,
 	summarizeStatus,
+	toCard,
 	toDetail,
 	toOverview,
 	unitLabel,
@@ -96,6 +97,16 @@ function withStatus(
 }
 
 describe('mapper helpers', () => {
+	it('compares percentage-point series without renaming their stored unit', () => {
+		const { manifest, seriesByKey } = loadGolden();
+		const indicator = manifest.indicators.find((i) => i.key === 'retail_sales_total_yoy')!;
+		const series = seriesByKey.get(indicator.key)!;
+		const card = toCard({ ...indicator, unit: 'pct' }, { ...series, unit: 'pct' }, null);
+		expect(card.unit).toBe('pct');
+		expect(card.delta).toEqual({ dir: 'down', v: '0.3' });
+		expect(card.points).toEqual(collapseRevisions(series.series));
+		expect(card.frequency).toBe(indicator.frequency);
+	});
 	it('formatValue: null 为破折号，速率保留一位，整数级别不带 .0', () => {
 		expect(formatValue(null, 'yoy_pct')).toBe('—');
 		expect(formatValue(3.8, 'yoy_pct')).toBe('3.8');
@@ -392,11 +403,11 @@ describe('overview taxonomy (chips + status panel)', () => {
 		expect(status.items[0]?.badge).toBe(STATUS_BADGE.fresh);
 	});
 
-	it('summarizeStatus: unknown 计入最新档', () => {
+	it('does not count unknown freshness as latest', () => {
 		const status = summarizeStatus([
-			{ key: 'a', metric: 'a', tone: 'unknown', badge: '最新', detail: '—' },
+			{ key: 'a', metric: 'a', tone: 'unknown', badge: '待采集', detail: '—' },
 		]);
-		expect(status.latest).toBe(1);
+		expect(status.latest).toBe(0);
 		expect(status.upcoming).toBe(0);
 		expect(status.overdue).toBe(0);
 	});
@@ -405,7 +416,7 @@ describe('overview taxonomy (chips + status panel)', () => {
 		expect(STATUS_BADGE.fresh).toBe('最新');
 		expect(STATUS_BADGE.aging).toBe('临近更新');
 		expect(STATUS_BADGE.stale).toBe('已过期');
-		expect(STATUS_BADGE.unknown).toBe('最新');
+		expect(STATUS_BADGE.unknown).toBe('待采集');
 	});
 
 	it('toOverview 给每张真实卡片打上分类', () => {

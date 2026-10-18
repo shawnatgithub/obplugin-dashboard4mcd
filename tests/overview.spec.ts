@@ -89,7 +89,9 @@ describe('renderOverview — metric card', () => {
 		);
 		expect(card.querySelector('.mcd-card__value')?.textContent).toContain('3.8');
 		expect(card.querySelector('.mcd-card__unit')?.textContent).toBe('%');
-		expect(card.querySelector('.mcd-delta')?.textContent).toBe('↓ 0.3pct');
+		expect(card.querySelector('.mcd-delta')?.textContent).toBe('−0.3 pp');
+		expect(card.querySelector('.mcd-card__foot')).toBeNull();
+		expect(card.querySelector('.mcd-card__stamp .mcd-dot')).not.toBeNull();
 	});
 
 	it('draws a sparkline with a baseline, one marker per gap, path and end dot', () => {
@@ -104,27 +106,24 @@ describe('renderOverview — metric card', () => {
 		expect(svg?.querySelector('circle')).not.toBeNull();
 	});
 
-	it('renders a NEW badge (not a gap note) when the card is badged NEW', () => {
+	it('preserves the NEW explanation in the tooltip', () => {
 		const root = render();
 		const card = cardByName(root, '网上零售额（同比）');
-		expect(card.querySelector('.mcd-badge.is-new')?.textContent).toBe('NEW');
+		expect(card.title).toContain('NEW');
 	});
 
 	it('renders a gap note when there are gaps and no badge', () => {
 		const root = render();
 		const card = cardByName(root, '服务零售额（同比）');
-		expect(card.querySelector('.mcd-card__foot')?.textContent).toContain(
+		expect(card.title).toContain(
 			'含 2 期缺失',
 		);
 	});
 
-	it('renders the 手动 badge with a red dot', () => {
+	it('preserves the manual-source explanation in the tooltip', () => {
 		const root = render();
 		const card = cardByName(root, '住户存款增速');
-		expect(card.querySelector('.mcd-badge.is-red')?.textContent).toContain(
-			'手动',
-		);
-		expect(card.querySelector('.mcd-dot.is-red')).not.toBeNull();
+		expect(card.title).toContain('手动');
 	});
 
 	it('omits the end dot for a stale (muted) series', () => {
@@ -140,22 +139,22 @@ describe('renderOverview — expired card', () => {
 		const card = cardByName(root, '上海金融数据（季度）');
 		expect(card.classList.contains('is-disabled')).toBe(true);
 		expect(card.querySelector('.mcd-card__expired')?.textContent).toBe(
-			'近 24 期无可用更新',
+			'暂无可用数据',
 		);
 		expect(card.querySelector('.mcd-spark')).toBeNull();
 	});
 
-	it('surfaces the expired reason in the foot', () => {
+	it('surfaces the expired reason in the tooltip', () => {
 		const root = render();
 		const card = cardByName(root, '上海金融数据（季度）');
-		expect(card.querySelector('.mcd-card__foot-expired')?.textContent).toBe(
+		expect(card.title).toContain(
 			'数据已过期 · 请检查采集',
 		);
 	});
 });
 
 describe('renderOverview — selection', () => {
-	it('selects on click, deselects on second click (single selection)', () => {
+	it('stays selected on a repeated click', () => {
 		const root = render();
 		const a = cardByName(root, 'CPI（同比）');
 		const b = cardByName(root, '核心 CPI（同比）');
@@ -168,7 +167,7 @@ describe('renderOverview — selection', () => {
 		expect(b.classList.contains('is-selected')).toBe(true);
 
 		b.click();
-		expect(b.classList.contains('is-selected')).toBe(false);
+		expect(b.classList.contains('is-selected')).toBe(true);
 	});
 
 	it('reports the resolved selection to onSelect', () => {
@@ -177,14 +176,15 @@ describe('renderOverview — selection', () => {
 		const a = cardByName(root, 'CPI（同比）');
 
 		a.click();
-		expect(onSelect).toHaveBeenLastCalledWith('CPI（同比）');
+		expect(onSelect).toHaveBeenLastCalledWith(a.dataset.id);
 
 		a.click();
-		expect(onSelect).toHaveBeenLastCalledWith(null);
+		expect(onSelect).toHaveBeenLastCalledWith(a.dataset.id);
 	});
 
 	it('honours an initial selection', () => {
-		const root = render({ selected: 'M1（同比）' });
+		const sample = OVERVIEW_GROUPS.flatMap((g) => g.cards).find((c) => c.name === 'M1（同比）')!;
+		const root = render({ selected: `sample:${sample.seed}:${sample.name}` });
 		expect(
 			cardByName(root, 'M1（同比）').classList.contains('is-selected'),
 		).toBe(true);
@@ -248,10 +248,12 @@ describe('renderOverview — card → detail navigation', () => {
 		expect(cards(root)[0]?.dataset.key).toBe('retail_sales_total');
 	});
 
-	it('fires onOpen with the key for a keyed card', () => {
+	it('opens full detail only through the linked-chart action', () => {
 		const onOpen = jest.fn();
 		const root = render({ groups: keyed, handlers: { onOpen } });
 		cards(root)[0]?.click();
+		expect(onOpen).not.toHaveBeenCalled();
+		root.querySelector<HTMLButtonElement>('.mcd-overview-detail__open')?.click();
 		expect(onOpen).toHaveBeenCalledWith('retail_sales_total');
 	});
 
@@ -354,8 +356,8 @@ describe('renderOverview — status panel', () => {
 		expect(root.querySelector('.mcd-status__body')?.hasAttribute('hidden')).toBe(
 			true,
 		);
-		expect(root.querySelector('.mcd-badge.is-fresh')?.textContent).toBe('最新 1');
-		expect(root.querySelector('.mcd-badge.is-stale')?.textContent).toBe(
+		expect(root.querySelector('.mcd-legend.is-fresh')?.textContent).toBe('最新 1');
+		expect(root.querySelector('.mcd-legend.is-stale')?.textContent).toBe(
 			'已过期 1',
 		);
 	});

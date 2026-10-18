@@ -77,6 +77,16 @@ function build(m: ChartModel): LooseOption {
 }
 
 describe('buildChartOption', () => {
+	it('uses theme tooltip surfaces and a canvas-safe renderer', () => {
+		const option = buildChartOption(model(), { ...TOKENS, surface: 'rgb(25, 25, 25)', border: 'rgb(90, 90, 90)', text: 'rgb(240, 240, 240)' });
+		expect(option.tooltip).toMatchObject({ backgroundColor: 'rgb(25, 25, 25)', borderColor: 'rgb(90, 90, 90)', textStyle: { color: 'rgb(240, 240, 240)' }, renderMode: 'richText', confine: true });
+	});
+	it('preserves nonmonthly axis periods', () => {
+		const option = build(model({ series: [series({ points: [pt('2026-Q1', 2)] })] }));
+		const axis = option.xAxis as { axisLabel: { formatter: (s: string) => string } };
+		expect(axis.axisLabel.formatter('2026-Q1')).toBe('2026-Q1');
+		expect(axis.axisLabel.formatter('2026-08-17')).toBe('2026-08-17');
+	});
 	it('emits a line series that never connects across nulls', () => {
 		const s0 = build(model()).series?.[0];
 		expect(s0?.type).toBe('line');

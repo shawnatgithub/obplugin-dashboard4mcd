@@ -14,6 +14,7 @@
  * absent from the map, which the mapper renders as an expired card.
  */
 
+import { parseRetail, type Diagnostic, type RetailProduct } from './retail';
 import {
 	parseCapabilities,
 	parseManifest,
@@ -49,6 +50,7 @@ export interface LoadOk {
 	seriesByKey: Map<string, IndicatorSeriesV1>;
 	/** Null when the capabilities file is absent or unparsable (degraded). */
 	caps: CapabilitiesV1 | null;
+	diagnostics?: Diagnostic[];
 }
 
 export interface LoadErr {
@@ -129,9 +131,11 @@ export async function loadContract(
 	if (!base) return err('no_data_dir', '尚未配置数据目录');
 
 	const manifestPath = joinPath(base, PROCESSED_SUBDIR, MANIFEST_FILENAME);
-	if (!(await adapter.exists(manifestPath))) {
-		return err('missing_manifest', `未找到清单文件：${manifestPath}`);
-	}
+	try {
+		if (!(await adapter.exists(manifestPath))) {
+			return err('missing_manifest', `未找到清单文件：${manifestPath}`);
+		}
+	} catch (e) { return err('unreadable', `${manifestPath}: ${messageOf(e)}`); }
 
 	const manifestRes = await readContract(adapter, manifestPath, parseManifest);
 	if (!manifestRes.ok) return err(manifestRes.reason, manifestRes.detail);
@@ -139,21 +143,51 @@ export async function loadContract(
 
 	// Capabilities are optional: degrade to null rather than fail the load.
 	let caps: CapabilitiesV1 | null = null;
+	const diagnostics: Diagnostic[] = [];
 	const capsPath = joinPath(base, PROCESSED_SUBDIR, manifest.capabilities_file);
-	if (await adapter.exists(capsPath)) {
-		const capsRes = await readContract(adapter, capsPath, parseCapabilities);
-		if (capsRes.ok) caps = capsRes.value;
-	}
+	try {
+		if (await adapter.exists(capsPath)) {
+			const capsRes = await readContract(adapter, capsPath, parseCapabilities);
+			if (capsRes.ok) caps = capsRes.value;
+			else diagnostics.push({ code: 'capabilities_unreadable', severity: 'warning', message: capsRes.detail });
+		} else diagnostics.push({ code: 'capabilities_missing', severity: 'warning', message: `未找到能力文件：${capsPath}` });
+	} catch (e) { diagnostics.push({ code: 'capabilities_unreadable', severity: 'warning', message: `${capsPath}: ${messageOf(e)}` }); }
 
 	// Series are best-effort: a missing/bad file just leaves the key absent,
 	// which the mapper renders as an expired card (never a fabricated zero).
 	const seriesByKey = new Map<string, IndicatorSeriesV1>();
 	for (const ind of manifest.indicators) {
 		const seriesPath = joinPath(base, PROCESSED_SUBDIR, ind.file);
-		if (!(await adapter.exists(seriesPath))) continue;
-		const seriesRes = await readContract(adapter, seriesPath, parseSeries);
-		if (seriesRes.ok) seriesByKey.set(ind.key, seriesRes.value);
+		try {
+			if (!(await adapter.exists(seriesPath))) {
+				diagnostics.push({ code: 'series_missing', severity: 'error', row: ind.key, message: `未找到序列：${seriesPath}` });
+				continue;
+			}
+			const seriesRes = await readContract(adapter, seriesPath, parseSeries);
+			if (seriesRes.ok) {
+				seriesByKey.set(ind.key, seriesRes.value);
+				for (const message of seriesRes.value.quality.errors ?? []) {
+					diagnostics.push({ code: 'source_quality', severity: 'warning', row: ind.key, period: ind.last_date ?? undefined, message });
+				}
+			} else diagnostics.push({ code: 'series_unreadable', severity: 'error', row: ind.key, message: seriesRes.detail });
+		} catch (e) { diagnostics.push({ code: 'series_unreadable', severity: 'error', row: ind.key, message: `${seriesPath}: ${messageOf(e)}` }); }
 	}
 
-	return { ok: true, manifest, seriesByKey, caps };
+	return { ok: true, manifest, seriesByKey, caps, diagnostics };
+}
+
+export type RetailLoadResult = { ok: true; value: RetailProduct }
+	| { ok: false; reason: 'missing' | 'unreadable' | 'unknown_schema'; detail: string };
+
+/** Independent of the manifest: a missing sidecar never replaces real cards. */
+export async function loadRetail(adapter: ContractAdapter, dataDir: string): Promise<RetailLoadResult> {
+	const path = joinPath(dataDir, PROCESSED_SUBDIR, 'retail_breakdown.json');
+	try {
+		if (!dataDir.trim() || !(await adapter.exists(path))) {
+			return { ok: false, reason: 'missing', detail: `尚未接入分业态零售数据：${path}` };
+		}
+		const res = await readContract(adapter, path, parseRetail);
+		if (res.ok) return res;
+		return { ok: false, reason: res.reason === 'unknown_schema' ? 'unknown_schema' : 'unreadable', detail: res.detail };
+	} catch (e) { return { ok: false, reason: 'unreadable', detail: `${path}: ${messageOf(e)}` }; }
 }

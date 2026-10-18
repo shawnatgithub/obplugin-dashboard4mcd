@@ -90,18 +90,33 @@ export class PluginSettingTab {
 	display(): void {}
 }
 
+export class Component {
+	load(): void {}
+	unload(): void {}
+	registerEvent(_event: unknown): void {}
+	addChild<T extends Component>(child: T): T { child.load(); return child; }
+	removeChild<T extends Component>(child: T): T { child.unload(); return child; }
+}
+
+export class MarkdownRenderer {
+	static async render(_app: unknown, markdown: string, host: HTMLElement, _path: string, _component: Component): Promise<void> {
+		host.textContent = markdown;
+	}
+}
+
 export class MarkdownView {}
 
 export class WorkspaceLeaf {}
 
 /** Minimal ItemView stub: a container with a header (0) and content (1). */
-export class ItemView {
+export class ItemView extends Component {
 	app: unknown;
 	leaf: unknown;
 	containerEl: HTMLElement;
 	contentEl: HTMLElement;
 
 	constructor(leaf?: unknown) {
+		super();
 		this.leaf = leaf;
 		this.containerEl = document.createElement('div');
 		this.contentEl = document.createElement('div');

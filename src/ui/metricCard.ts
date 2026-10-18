@@ -9,13 +9,13 @@
  */
 
 import {
-	EXPIRED_SPARK_TEXT,
-	deltaText,
 	freshnessDotClass,
 	freshnessLabel,
 	gapNote,
 	isExpired,
 } from '../format';
+import { calendarPoints, type OverviewRange } from '../analysis/overviewRange';
+import { sparkGaps } from '../sparkline';
 import type { MetricCard } from '../types';
 import { el } from './dom';
 import { buildSparkline } from './sparklineView';
@@ -27,16 +27,47 @@ export interface MetricCardHandlers {
 	onOpen?: (key: string) => void;
 }
 
+export function cardIdentity(card: MetricCard): string {
+	return card.key ?? `sample:${card.seed}:${card.name}`;
+}
+
+function comparison(card: MetricCard): string {
+	if (!card.delta) return '—';
+	const unit = ['%', 'pct', 'pp'].includes(card.unit) ? 'pp' : card.unit;
+	const magnitude = card.delta.dir === 'flat' ? 0 : Number(card.delta.v);
+	if (!Number.isFinite(magnitude)) return '—';
+	return `${card.delta.dir === 'down' ? '−' : '+'}${magnitude.toFixed(1)}${unit ? ` ${unit}` : ''}`;
+}
+
+export function updateCardSpark(root: HTMLElement, card: MetricCard, range: OverviewRange): void {
+	const host = root.querySelector<HTMLElement>('.mcd-card__spark');
+	if (!host) return;
+	host.textContent = '';
+	if (isExpired(card)) {
+		host.appendChild(el('div', 'mcd-card__expired', '暂无可用数据'));
+		return;
+	}
+	const points = card.points ? calendarPoints(card.points, card.frequency ?? 'monthly', range) : null;
+	const spark = points?.map((p) => p.value);
+	const display = spark ? { ...card, spark, gaps: sparkGaps(spark) } : card;
+	host.appendChild(buildSparkline(display));
+	host.title = gapNote(display.gaps) ?? '所选时间范围';
+}
+
 export function buildMetricCard(
 	card: MetricCard,
 	handlers: MetricCardHandlers = {},
 	selected = false,
+	range: OverviewRange = '12',
 ): HTMLElement {
 	const expired = isExpired(card);
 
 	const root = el('button', 'mcd-card');
 	root.type = 'button';
 	root.dataset.metric = card.name;
+	root.dataset.id = cardIdentity(card);
+	root.setAttribute('aria-pressed', String(selected));
+	root.title = [card.name, freshnessLabel(card.fresh), card.badge, card.expired, gapNote(card.gaps)].filter(Boolean).join(' · ');
 	if (card.key) root.dataset.key = card.key;
 	root.setAttribute(
 		'aria-label',
@@ -48,12 +79,11 @@ export function buildMetricCard(
 	// Row 1 — name (+ 手动 badge on the right)
 	const nameRow = el('div', 'mcd-card__row');
 	nameRow.appendChild(el('span', 'mcd-card__name', card.name));
-	if (card.badge === '手动') {
-		const badge = el('span', 'mcd-badge is-red');
-		badge.appendChild(el('span', 'mcd-dot is-red'));
-		badge.appendChild(document.createTextNode('手动'));
-		nameRow.appendChild(badge);
-	}
+	const stamp = el('span', 'mcd-card__stamp');
+	const dot = el('span', freshnessDotClass(card.fresh));
+	dot.title = freshnessLabel(card.fresh);
+	stamp.append(dot, el('span', 'mcd-mono', card.period || '—'));
+	nameRow.appendChild(stamp);
 	root.appendChild(nameRow);
 
 	// Row 2 — value + unit + delta
@@ -62,48 +92,17 @@ export function buildMetricCard(
 	if (card.unit) {
 		valueRow.appendChild(el('span', 'mcd-card__unit', card.unit));
 	}
-	const delta = deltaText(card.delta);
-	if (delta) {
-		valueRow.appendChild(el('span', 'mcd-delta', delta));
-	}
 	root.appendChild(valueRow);
 
-	// Row 3 — sparkline, or the expired placeholder
-	if (expired) {
-		root.appendChild(el('div', 'mcd-card__expired', EXPIRED_SPARK_TEXT));
-	} else {
-		root.appendChild(buildSparkline(card));
-	}
-
-	// Row 4 — foot
-	const foot = el('div', 'mcd-card__foot');
-	const footLeft = el('span', 'mcd-card__foot-left');
-	footLeft.appendChild(el('span', 'mcd-mono', card.period));
-	const dot = el('span', freshnessDotClass(card.fresh));
-	dot.title = freshnessLabel(card.fresh);
-	footLeft.appendChild(dot);
-	if (expired) {
-		footLeft.appendChild(
-			el('span', 'mcd-card__foot-expired', card.expired ?? ''),
-		);
-	} else {
-		footLeft.appendChild(el('span', undefined, freshnessLabel(card.fresh)));
-	}
-	foot.appendChild(footLeft);
-
-	if (card.badge === 'NEW') {
-		foot.appendChild(el('span', 'mcd-badge is-new', 'NEW'));
-	} else if (!card.badge) {
-		const note = gapNote(card.gaps);
-		if (note) foot.appendChild(el('span', undefined, note));
-	}
-	root.appendChild(foot);
+	const bottom = el('div', 'mcd-card__bottom');
+	const delta = el('div', 'mcd-card__comparison');
+	delta.append(el('span', 'mcd-muted', '较上期'), el('span', 'mcd-delta', comparison(card)));
+	bottom.append(delta, el('div', 'mcd-card__spark'));
+	root.appendChild(bottom);
+	updateCardSpark(root, card, range);
 
 	root.addEventListener('click', () => {
-		handlers.onSelect?.(card.name);
-		// Only real (contract-backed) cards carry a key to navigate by; sample
-		// cards have none and simply keep the selection highlight.
-		if (card.key) handlers.onOpen?.(card.key);
+		handlers.onSelect?.(cardIdentity(card));
 	});
 
 	return root;
